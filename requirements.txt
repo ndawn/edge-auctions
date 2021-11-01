@@ -1,0 +1,14 @@
+aiohttp~=3.7
+asyncpg~=0.24
+bcrypt~=3.2
+beautifulsoup4~=4.10
+boto3~=1.17
+boto3-stubs~=1.18
+fastapi~=0.70
+Pillow~=8.4
+pydantic~=1.8
+python-multipart~=0.0
+pyzbar~=0.1
+starlette~=0.16
+tortoise-orm~=0.17
+uvicorn~=0.15
