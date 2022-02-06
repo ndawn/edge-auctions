@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, UUID4
 from tortoise import fields
 
-from auctions.comics.models import PyItem
+from auctions.comics.models import PyItemWithImages
 from auctions.utils.abstract_models import (
     CreatedRecordedModel,
     CreatedUpdatedRecordedModel,
@@ -30,13 +30,13 @@ class BidValidationResult(Enum):
     INVALID_BUYOUT = 'invalid_buyout'
 
 
-class ExternalSource(CreatedRecordedModel):
-    code = fields.CharField(primary_key=True, max_length=255)
+class ExternalSource(CreatedUpdatedRecordedModel):
+    code = fields.CharField(pk=True, max_length=255)
     name = fields.CharField(max_length=255)
 
 
 class AuctionTarget(CreatedRecordedModel):
-    uuid = fields.UUIDField(primary_key=True)
+    uuid = fields.UUIDField(pk=True)
     name = fields.CharField(max_length=255)
 
     external: fields.ReverseRelation["ExternalAuctionTarget"]
@@ -52,12 +52,15 @@ class ExternalAuctionTarget(CreatedRecordedModel):
     target = fields.ForeignKeyField('auctioneer.AuctionTarget', related_name='external', on_delete=fields.CASCADE)
     source = fields.ForeignKeyField('auctioneer.ExternalSource', on_delete=fields.RESTRICT)
     entity_id = fields.IntField(unique=True)
-    name = fields.CharField(max_length=255)
 
 
 class AuctionSet(CreatedUpdatedRecordedModel):
-    uuid = fields.UUIDField(primary_key=True)
+    uuid = fields.UUIDField(pk=True)
     target = fields.ForeignKeyField('auctioneer.AuctionTarget', on_delete=fields.RESTRICT)
+    date_due = fields.DatetimeField()
+    anti_sniper = fields.IntField()
+    started = fields.DatetimeField(null=True)
+    ended = fields.DatetimeField(null=True)
 
     auctions: fields.ReverseRelation["Auction"]
     external: fields.ReverseRelation["ExternalAuctionSet"]
@@ -76,18 +79,18 @@ class ExternalAuctionSet(CreatedUpdatedRecordedModel):
 
 
 class Auction(CreatedUpdatedRecordedModel):
-    uuid = fields.UUIDField(primary_key=True)
-    photo_id = fields.IntField(unique=True)
+    uuid = fields.UUIDField(pk=True)
     set = fields.ForeignKeyField('auctioneer.AuctionSet', on_delete=fields.CASCADE)
-    item = fields.ForeignKeyField('comics.Item', on_delete=fields.RESTRICT)
+    item = fields.OneToOneField('comics.Item', on_delete=fields.RESTRICT)
+    date_due = fields.DatetimeField()
     buy_now_price = fields.IntField(null=True)
     buy_now_expires = fields.IntField(null=True)
-    bid_start_price = fields.IntField()
-    bid_min_step = fields.IntField()
-    bid_multiple_of = fields.IntField()
-    date_due = fields.DatetimeField()
-    anti_sniper = fields.IntField()
+    bid_start_price = fields.IntField(default=0)
+    bid_min_step = fields.IntField(default=0)
+    bid_multiple_of = fields.IntField(default=0)
     is_active = fields.BooleanField(default=True)
+    started = fields.DatetimeField(null=True)
+    ended = fields.DatetimeField(null=True)
 
     bids: fields.ReverseRelation["Bid"]
     external: fields.ReverseRelation["ExternalAuction"]
@@ -185,7 +188,7 @@ class Bid(CreatedRecordedModel):
 
 
 class ExternalBid(CreatedRecordedModel):
-    bid = fields.OneToOneField('auctioneer.Bid', on_delete=fields.CASCADE)
+    bid = fields.OneToOneField('auctioneer.Bid', related_name='external', on_delete=fields.CASCADE)
     source = fields.ForeignKeyField('auctioneer.ExternalSource', on_delete=fields.RESTRICT)
     entity_id = fields.IntField()
 
@@ -208,64 +211,67 @@ class PyExternalSource(PyCreatedUpdatedRecordedModel):
         orm_mode = True
 
 
-class PyAuctionTarget(PyCreatedRecordedModel):
-    uuid: UUID4
+class PyExternalSourceIn(BaseModel):
+    code: Optional[str]
     name: str
-    external: PyRelatedMany
+
+
+class PyExternalAuctionTarget(PyCreatedRecordedModel):
+    id: int
+    source: PyExternalSource
+    entity_id: int
 
     class Config:
         orm_mode = True
 
 
-class PyExternalAuctionTarget(PyCreatedRecordedModel):
-    id: int
-    target: PyAuctionTarget
-    source: PyExternalSource
-    entity_id: int
+class PyAuctionTarget(PyCreatedRecordedModel):
+    uuid: UUID4
     name: str
+    external: list[PyExternalAuctionTarget]
 
     class Config:
         orm_mode = True
 
 
 class PyExternalAuctionTargetIn(BaseModel):
-    target_uuid: UUID4
-    source_code: str
-    entity_id: int
-    name: str
-
-
-class PyExternalAuctionTargetPartialIn(BaseModel):
-    target_uuid: UUID4
-    source_code: str
-    entity_id: int
-    name: str
-
-
-class PyExternalAuctionTargetOut(PyCreatedRecordedModel):
-    id: int
-    source: PyExternalSource
-    entity_id: int
-    name: str
+    id: Optional[int]
+    source_id: Optional[str]
+    entity_id: Optional[int]
 
 
 class PyAuctionTargetIn(BaseModel):
-    name: str
-    external: list[PyExternalAuctionTargetPartialIn]
-
-
-class PyAuctionTargetOut(PyCreatedRecordedModel):
-    uuid: UUID4
-    name: str
-    external: list[PyExternalAuctionTargetOut]
+    name: Optional[str]
+    external: list[PyExternalAuctionTargetIn]
 
 
 class PyAuctionSet(PyCreatedUpdatedRecordedModel):
     uuid: UUID4
     target: PyAuctionTarget
+    date_due: datetime
+    anti_sniper: int
+    started: Optional[datetime]
+    ended: Optional[datetime]
 
     class Config:
         orm_mode = True
+
+
+class PyAuctionSetCreateQuantitySingle(BaseModel):
+    price_category_id: int
+    quantity: int
+
+
+class PyAuctionSetCreateQuantity(BaseModel):
+    item_type_id: int
+    prices: list[PyAuctionSetCreateQuantitySingle]
+
+
+class PyAuctionSetCreate(BaseModel):
+    target_uuid: UUID4
+    date_due: datetime
+    anti_sniper: int
+    quantities: list[PyAuctionSetCreateQuantity]
 
 
 class PyExternalAuctionSet(PyCreatedUpdatedRecordedModel):
@@ -281,24 +287,17 @@ class PyExternalAuctionSetOut(PyCreatedUpdatedRecordedModel):
     entity_id: int
 
 
-class PyAuctionSetOut(PyCreatedUpdatedRecordedModel):
+class PyAuctionSetCreateOut(BaseModel):
     uuid: UUID4
-    target: PyAuctionTargetOut
-    external: list[PyExternalAuctionSetOut]
+    target_uuid: UUID4
+    date_due: datetime
+    anti_sniper: int
+    items: list[dict]
 
 
 class PyAuction(PyCreatedUpdatedRecordedModel):
     uuid: UUID4
-    photo_id: int
-    set: PyAuctionSet
-    item: PyItem
-    buy_now_price: Optional[int]
-    buy_now_expires: Optional[int]
-    bid_start_price: int
-    bid_min_step: int
-    bid_multiple_of: int
-    date_due: datetime
-    anti_sniper: int
+    item: PyItemWithImages
     is_active: bool
 
     class Config:
@@ -319,18 +318,32 @@ class PyExternalAuctionOut(PyCreatedUpdatedRecordedModel):
 
 class PyAuctionOut(PyCreatedUpdatedRecordedModel):
     uuid: UUID4
-    photo_id: int
-    set: PyAuctionSetOut
-    item: PyItem
+    item: PyItemWithImages
+    date_due: datetime
     buy_now_price: Optional[int]
     buy_now_expires: Optional[int]
     bid_start_price: int
     bid_min_step: int
     bid_multiple_of: int
-    date_due: datetime
-    anti_sniper: int
     is_active: bool
+
+
+class PyAuctionOutWithSet(PyAuctionOut):
+    set: PyAuctionSet
+
+
+class PyAuctionOutWithExternal(PyAuctionOut):
     external: list[PyExternalAuctionOut]
+
+
+class PyAuctionSetOut(PyAuctionSet):
+    auctions: list[PyAuctionOutWithExternal]
+    external: list[PyExternalAuctionSetOut]
+
+
+class PyAuctionRerollIn(BaseModel):
+    item_type_id: int
+    price_category_id: int
 
 
 class PyBidder(PyCreatedUpdatedRecordedModel):
@@ -344,7 +357,6 @@ class PyBidder(PyCreatedUpdatedRecordedModel):
 
 class PyExternalBidder(PyCreatedUpdatedRecordedModel):
     id: int
-    bidder: PyBidder
     source: PyExternalSource
     subject_id: int
 
@@ -354,6 +366,7 @@ class PyExternalBidder(PyCreatedUpdatedRecordedModel):
 
 class PyExternalBidderOut(PyCreatedUpdatedRecordedModel):
     id: int
+    bidder: PyBidder
     source: PyExternalSource
     subject_id: int
 
@@ -368,7 +381,6 @@ class PyBidderOut(PyCreatedUpdatedRecordedModel):
 class PyBid(PyCreatedRecordedModel):
     id: int
     bidder: PyBidder
-    auction: PyAuction
     value: int
     is_sniped: bool
     is_buyout: bool
@@ -378,9 +390,32 @@ class PyBid(PyCreatedRecordedModel):
         orm_mode = True
 
 
+class PyBidWithExternal(PyCreatedRecordedModel):
+    id: int
+    bidder: PyBidder
+    value: int
+    is_sniped: bool
+    is_buyout: bool
+    external: Optional["PyExternalBid"]
+
+    class Config:
+        orm_mode = True
+
+
+class PyAuctionOutWithBids(PyAuctionOut):
+    bids: list[PyBidWithExternal]
+
+
+class PyAuctionOutWithExternalAndBids(PyAuctionOutWithBids, PyAuctionOutWithExternal):
+    pass
+
+
+class PyAuctionOutFull(PyAuctionOutWithSet, PyAuctionOutWithExternalAndBids):
+    set: PyAuctionSet
+
+
 class PyExternalBid(PyCreatedRecordedModel):
     id: int
-    bid: PyBid
     source: PyExternalSource
     entity_id: int
 
@@ -390,6 +425,7 @@ class PyExternalBid(PyCreatedRecordedModel):
 
 class PyExternalBidOut(PyCreatedRecordedModel):
     id: int
+    bid: PyBid
     source: PyExternalSource
     entity_id: int
 
@@ -405,17 +441,16 @@ class PyBidOut(PyCreatedRecordedModel):
     external: Optional[PyExternalBidOut]
 
 
-class PyInvalidBid(BaseModel):
+class InvalidBid(BaseModel):
     id: Optional[int]
     value: str
-    auction: PyAuction
-    external_auction: Optional[PyExternalAuction]
-    target: Optional[PyExternalAuctionTarget]
-    source: Optional[PyExternalSource]
+    auction: Auction
+    external_auction: Optional[ExternalAuction]
+    target: Optional[ExternalAuctionTarget]
+    source: Optional[ExternalSource]
 
-
-class PyAuctionSetCreateIn(BaseModel):
-    ...
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class PyAuctionCreateIn(BaseModel):
@@ -434,6 +469,12 @@ class PyExternalBidCreateIn(BaseModel):
 
 
 class PyAuctionCloseOut(BaseModel):
-    auction_uuid: UUID4
+    auction_id: str
     code: AuctionCloseCodeType
     retry_at: Optional[int]
+
+
+class PyAuctionSetCloseOut(BaseModel):
+    uuid: str
+    ended: Optional[datetime]
+    auction_statuses: list[PyAuctionCloseOut]

@@ -1,4 +1,5 @@
-import os.path
+from typing import Optional
+import uuid
 
 from fastapi import Depends, File, Form, UploadFile
 from fastapi.exceptions import HTTPException
@@ -6,67 +7,97 @@ from fastapi.routing import APIRouter
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY
 
 from auctions.accounts.models import PyUser
-from auctions.comics.models import ItemType
-from auctions.config import IMAGE_IMAGES_DIR, IMAGE_THUMBS_DIR
+from auctions.comics.models import (
+    Image,
+    Item,
+    ItemType,
+    PriceCategory,
+    PyImageBase,
+    PyItemType,
+    PyItemWithImages,
+    PyPriceCategory,
+)
 from auctions.depends import get_current_active_admin
-from auctions.supply.images import process_image
+from auctions.supply.images import create_item_from_image, delete_image_from_s3
 from auctions.supply.models import (
-    PyCreateSessionOut,
     PySupplyImage,
     PySupplyItem,
-    PySupplyItemFull,
     PySupplyItemUpdateIn,
-    PySupplySession,
-    PySupplySessionFull,
-    PyJoinImagesIn,
-    PyJoinImagesOut,
+    PySupplyItemWithImages,
+    PySupplySessionWithItems,
+    PyJoinItemsIn,
     SupplyImage,
     SupplyItem,
+    SupplyItemParseStatus,
     SupplySession,
 )
 from auctions.supply.parse import parse_item_data
-from auctions.utils.s3 import S3ImageUploader
+from auctions.utils.abstract_models import DeleteResponse
 
 
 router = APIRouter(redirect_slashes=False)
 
 
-DEFAULT_TAG = 'Supply'
+SESSION_TAG = 'Supply Sessions'
+ITEM_TAG = 'Supply Items'
+IMAGE_TAG = 'Supply Images'
 
 
-@router.post('/sessions', tags=[DEFAULT_TAG])
-async def create_session(
-    item_type_id: int = Form(...),
-    files: list[UploadFile] = File(...),
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyCreateSessionOut:
-    item_type = await ItemType.get_or_none(pk=item_type_id)
+@router.get('/sessions', tags=[SESSION_TAG])
+async def list_sessions(
+    item_type_id: Optional[int] = None,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> list[PySupplySessionWithItems]:
+    filter_params = {}
 
-    if item_type is None:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail='Item type with given id is not found',
+    if item_type_id is not None:
+        filter_params['item_type__pk'] = item_type_id
+
+    return [
+        PySupplySessionWithItems(
+            uuid=session.uuid,
+            item_type=PyItemType.from_orm(session.item_type),
+            items=[
+                PySupplyItemWithImages(
+                    uuid=item.uuid,
+                    name=item.name,
+                    description=item.description,
+                    publisher=item.publisher,
+                    release_date=item.release_date,
+                    upca=item.upca,
+                    upc5=item.upc5,
+                    cover_price=item.cover_price,
+                    condition_prices=item.condition_prices,
+                    price_category=(
+                        PyPriceCategory.from_orm(await item.price_category)
+                        if await item.price_category is not None else None
+                    ),
+                    related_links=item.related_links,
+                    parse_status=item.parse_status,
+                    images=[
+                        PySupplyImage.from_orm(image)
+                        for image in await item.images
+                    ],
+                    created=item.created,
+                    updated=item.updated,
+                )
+                for item in await session.items
+            ],
+            created=session.created,
+            updated=session.updated,
         )
-
-    session = await SupplySession.create(item_type=item_type)
-
-    items = []
-
-    for file in files:
-        items.append(await process_image(file))
-
-    return PyCreateSessionOut(
-        session=PySupplySession.from_orm(session),
-        items=[(PySupplyImage.from_orm(image), PySupplyItem.from_orm(item)) for image, item in items],
-    )
+        for session in await SupplySession.filter(**filter_params).order_by('-created').select_related(
+            'item_type__price_category'
+        )
+    ]
 
 
-@router.get('/sessions/{session_uuid}', tags=[DEFAULT_TAG])
+@router.get('/sessions/{session_uuid}', tags=[SESSION_TAG])
 async def get_session(
     session_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PySupplySessionFull:
-    session = await SupplySession.get_or_none(pk=session_uuid).select_related('items__images')
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplySessionWithItems:
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
 
     if session is None:
         raise HTTPException(
@@ -74,14 +105,231 @@ async def get_session(
             detail='Not found',
         )
 
-    return PySupplySessionFull.from_orm(session)
+    return PySupplySessionWithItems(
+        uuid=session.uuid,
+        item_type=PyItemType.from_orm(session.item_type),
+        items=[
+            PySupplyItemWithImages(
+                uuid=item.uuid,
+                name=item.name,
+                description=item.description,
+                publisher=item.publisher,
+                release_date=item.release_date,
+                upca=item.upca,
+                upc5=item.upc5,
+                cover_price=item.cover_price,
+                condition_prices=item.condition_prices,
+                price_category=(
+                    PyPriceCategory.from_orm(await item.price_category)
+                    if await item.price_category is not None else None
+                ),
+                related_links=item.related_links,
+                parse_status=item.parse_status,
+                images=[
+                    PySupplyImage.from_orm(image)
+                    for image in await item.images
+                ],
+                created=item.created,
+                updated=item.updated,
+            )
+            for item in await session.items
+        ],
+        created=session.created,
+        updated=session.updated,
+    )
 
 
-@router.get('/items/{item_uuid}', tags=[DEFAULT_TAG])
+@router.post('/sessions', tags=[SESSION_TAG])
+async def create_session(
+    item_type_id: int = Form(...),
+    files: list[UploadFile] = File(...),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplySessionWithItems:
+    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category')
+
+    if item_type is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Item type with given id is not found',
+        )
+
+    session = await SupplySession.create(uuid=uuid.uuid4(), item_type=item_type)
+
+    items = []
+
+    for file in files:
+        items.append(await create_item_from_image(file, session))
+
+    return PySupplySessionWithItems(
+        uuid=session.uuid,
+        item_type=PyItemType.from_orm(session.item_type),
+        items=[
+            PySupplyItemWithImages(
+                uuid=item.uuid,
+                name=item.name,
+                description=item.description,
+                publisher=item.publisher,
+                release_date=item.release_date,
+                upca=item.upca,
+                upc5=item.upc5,
+                cover_price=item.cover_price,
+                condition_prices=item.condition_prices,
+                price_category=(
+                    PyPriceCategory.from_orm(await item.price_category)
+                    if await item.price_category is not None else None
+                ),
+                related_links=item.related_links,
+                parse_status=item.parse_status,
+                images=[
+                    PySupplyImage.from_orm(image)
+                    for image in await item.images
+                ],
+                created=item.created,
+                updated=item.updated,
+            )
+            for item in items
+        ],
+        created=session.created,
+        updated=session.updated,
+    )
+
+
+@router.put('/sessions/{session_uuid}', tags=[SESSION_TAG])
+async def update_session(
+    session_uuid: str,
+    files: list[UploadFile] = File(...),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> list[PySupplyItemWithImages]:
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+
+    if session is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    items = []
+
+    for file in files:
+        items.append(await create_item_from_image(file, session))
+
+    return [
+        PySupplyItemWithImages(
+            uuid=item.uuid,
+            name=item.name,
+            description=item.description,
+            publisher=item.publisher,
+            release_date=item.release_date,
+            upca=item.upca,
+            upc5=item.upc5,
+            cover_price=item.cover_price,
+            condition_prices=item.condition_prices,
+            price_category=(
+                PyPriceCategory.from_orm(await item.price_category)
+                if await item.price_category is not None else None
+            ),
+            parse_status=item.parse_status,
+            related_links=item.related_links,
+            images=[
+                PySupplyImage.from_orm(image)
+                for image in await item.images.order_by('-is_main')
+            ],
+            created=item.created,
+            updated=item.updated,
+        )
+        for item in items
+    ]
+
+
+@router.post('/sessions/{session_uuid}/apply', tags=[SESSION_TAG])
+async def apply_session(
+    session_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+):
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+
+    if session is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    items = []
+
+    for item_ in await session.items:
+        item = await Item.create(
+            uuid=uuid.uuid4(),
+            name=item_.name,
+            type=session.item_type,
+            upca=item_.upca,
+            upc5=item_.upc5,
+            price_category=await item_.price_category or session.item_type.price_category,
+        )
+
+        for image in await item_.images:
+            await Image.create(
+                uuid=image.uuid,
+                extension=image.extension,
+                item=item,
+                image_url=image.image_url,
+                thumb_url=image.thumb_url,
+                is_main=image.is_main,
+            )
+            await image.delete()
+        items.append(item)
+
+    await session.delete()
+
+    return [
+        PyItemWithImages(
+            uuid=item.uuid,
+            name=item.name,
+            type=item.type,
+            upca=item.upca,
+            upc5=item.upc5,
+            price_category=(
+                PyPriceCategory.from_orm(await item.price_category)
+                if await item.price_category is not None else None
+            ),
+            images=[
+                PyImageBase.from_orm(image)
+                for image in await item.images
+            ],
+            created=item.created,
+            updated=item.updated,
+        )
+        for item in items
+    ]
+
+
+@router.delete('/sessions/{session_uuid}')
+async def delete_session(
+    session_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
+    session = await SupplySession.get_or_none(uuid=session_uuid)
+
+    if session is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    for item in await session.items:
+        for image in await item.images:
+            await delete_image_from_s3(image)
+            await image.delete()
+        await item.delete()
+
+    await session.delete()
+    return DeleteResponse()
+
+
+@router.get('/items/{item_uuid}', tags=[ITEM_TAG])
 async def get_item(
     item_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PySupplyItemFull:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplyItemWithImages:
     item = await SupplyItem.get_or_none(pk=item_uuid).select_related('images')
 
     if item is None:
@@ -90,135 +338,253 @@ async def get_item(
             detail='Not found',
         )
 
-    return PySupplyItemFull.from_orm(item)
+    return PySupplyItemWithImages.from_orm(item)
 
 
-@router.put('/items/{item_uuid}', tags=[DEFAULT_TAG])
-async def update_item(
-    item_uuid: str,
-    data: PySupplyItemUpdateIn,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PySupplyItem:
-    item = await SupplyItem.get_or_none(pk=item_uuid)
+@router.post('/items', tags=[ITEM_TAG])
+async def create_item(
+    session_uuid: str = Form(...),
+    file: UploadFile = File(...),
+    user: PyUser = Depends(get_current_active_admin)  # noqa
+) -> PySupplyItemWithImages:
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type')
 
-    if item is None:
+    if session is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail='Not found',
+            detail='Supply session with given uuid is not found',
         )
 
-    item = item.update_from_dict(**data.dict(exclude_unset=True))
-    await item.save()
-    return PySupplyItem.from_orm(item)
+    item = await create_item_from_image(file, session)
 
-
-@router.post('/items/{item_uuid}/parse_upc', tags=[DEFAULT_TAG])
-async def parse_item_data_from_upc(
-    item_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PySupplyItem:
-    item = await SupplyItem.get_or_none(pk=item_uuid)
-
-    if item is None:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail='Not found',
-        )
-
-    item = parse_item_data(item)
-    return PySupplyItem.from_orm(item)
-
-
-@router.delete('/items/{item_uuid}', tags=[DEFAULT_TAG])
-async def delete_item(
-    item_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
-    item = await SupplyItem.get_or_none(pk=item_uuid)
-
-    if item is None:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail='Not found',
-        )
-
-    item_images = await item.images.all()
-
-    s3 = S3ImageUploader()
-
-    for image in item_images:
-        await s3.delete_image(os.path.join(IMAGE_IMAGES_DIR, str(image.uuid)))
-        await s3.delete_image(os.path.join(IMAGE_THUMBS_DIR, str(image.uuid)))
-
-    return {'ok': True}
-
-
-@router.post('/images/join', tags=[DEFAULT_TAG])
-async def join_images(
-    data: PyJoinImagesIn,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyJoinImagesOut:
-    images = {}
-    non_exising_images = []
-
-    if data.main not in data.images:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail='Main image must be in the provided list of the images',
-        )
-
-    if len(data.images) != 2:
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail='Cannot join more or less than 2 images',
-        )
-
-    for image_uuid in data.images:
-        supply_image = await SupplyImage.get_or_none(pk=image_uuid).select_related('item')
-
-        if supply_image is None:
-            non_exising_images.append(image_uuid)
-        else:
-            images[image_uuid] = supply_image
-
-    if non_exising_images:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail=f'Items with those uuids were not found: {", ".join(map(lambda i: str(i), non_exising_images))}',
-        )
-
-    main_image = images[data.main]
-    del images[data.main]
-    main_image.is_main = True
-    remaining_image = list(images.values())[0]
-    main_image.item.name = main_image.item.name or remaining_image.item.name
-    main_image.item.description = main_image.item.description or remaining_image.item.description
-    main_image.item.publisher = main_image.item.publisher or remaining_image.item.publisher
-    main_image.item.upca = main_image.item.upca or remaining_image.item.upca
-    main_image.item.upc5 = main_image.item.upc5 or remaining_image.item.upc5
-    main_image.item.price_usd = main_image.item.price_usd or remaining_image.item.price_usd
-    main_image.item.price_rub = main_image.item.price_rub or remaining_image.item.price_rub
-    await main_image.save()
-
-    if data.drop_remaining:
-        await remaining_image.item.delete()
-        await remaining_image.delete()
-    else:
-        remaining_image.is_main = False
-        await remaining_image.save()
-
-    return PyJoinImagesOut(
-        image=PySupplyImage.from_orm(main_image),
-        item=PySupplyItem.from_orm(main_image.item),
+    return PySupplyItemWithImages(
+        uuid=item.uuid,
+        name=item.name,
+        description=item.description,
+        publisher=item.publisher,
+        release_date=item.release_date,
+        upca=item.upca,
+        upc5=item.upc5,
+        cover_price=item.cover_price,
+        condition_prices=item.condition_prices,
+        price_category=(
+            PyPriceCategory.from_orm(await item.price_category)
+            if await item.price_category is not None else None
+        ),
+        parse_status=item.parse_status,
+        related_links=item.related_links,
+        images=[
+            PySupplyImage.from_orm(image)
+            for image in item.images
+        ],
+        created=item.created,
+        updated=item.updated,
     )
 
 
-@router.delete('/images/{image_uuid}', tags=[DEFAULT_TAG])
+@router.put('/items/{item_uuid}', tags=[ITEM_TAG])
+async def update_item(
+    item_uuid: str,
+    data: PySupplyItemUpdateIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplyItemWithImages:
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'price_category')
+
+    if item is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    item = item.update_from_dict(data.dict(exclude_unset=True))
+    await item.save()
+
+    if item.session is not None:
+        await item.session.save()
+
+    return PySupplyItemWithImages(
+        uuid=item.uuid,
+        name=item.name,
+        description=item.description,
+        publisher=item.publisher,
+        release_date=item.release_date,
+        upca=item.upca,
+        upc5=item.upc5,
+        cover_price=item.cover_price,
+        condition_prices=item.condition_prices,
+        price_category=(
+            PyPriceCategory.from_orm(item.price_category)
+            if item.price_category is not None else None
+        ),
+        related_links=item.related_links,
+        parse_status=item.parse_status,
+        images=[
+            PySupplyImage.from_orm(image)
+            for image in await item.images
+        ],
+        created=item.created,
+        updated=item.updated,
+    )
+
+
+@router.post('/items/{item_uuid}/parse_upc', tags=[ITEM_TAG])
+async def parse_item_data_from_upc(
+    item_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplyItemWithImages:
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session')
+
+    if item is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    item = await parse_item_data(item)
+
+    if item.session is not None:
+        await item.session.save()
+
+    return PySupplyItemWithImages(
+        uuid=item.uuid,
+        name=item.name,
+        description=item.description,
+        publisher=item.publisher,
+        release_date=item.release_date,
+        upca=item.upca,
+        upc5=item.upc5,
+        cover_price=item.cover_price,
+        condition_prices=item.condition_prices,
+        price_category=(
+            PyPriceCategory.from_orm(item.price_category)
+            if item.price_category is not None else None
+        ),
+        related_links=item.related_links,
+        parse_status=item.parse_status,
+        images=[
+            PySupplyImage.from_orm(image)
+            for image in await item.images
+        ],
+        created=item.created,
+        updated=item.updated,
+    )
+
+
+@router.delete('/items/{item_uuid}', tags=[ITEM_TAG])
+async def delete_item(
+    item_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session')
+
+    if item is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    for image in await item.images:
+        await delete_image_from_s3(image)
+        await image.delete()
+
+    if item.session is not None:
+        await item.session.save()
+
+    await item.delete()
+
+    return DeleteResponse()
+
+
+@router.post('/items/join', tags=[ITEM_TAG])
+async def join_items(
+    data: PyJoinItemsIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplyItemWithImages:
+    if data.main_image not in data.images:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail='Main image must be in the list of selected images',
+        )
+
+    item_data_of = await SupplyItem.get_or_none(uuid=data.data_of).select_related('price_category', 'session')
+    item_to_delete = await SupplyItem.get_or_none(uuid=data.to_delete)
+
+    if item_data_of is None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f'Item with uuid {data.data_of} is not found',
+        )
+
+    if item_to_delete is None:
+        raise HTTPException(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f'Item with uuid {data.to_delete} is not found',
+        )
+
+    images = []
+    non_existent_images = []
+
+    for image_uuid in data.images:
+        image = await SupplyImage.get_or_none(uuid=str(image_uuid))
+
+        if image is None:
+            non_existent_images.append(str(image_uuid))
+        else:
+            images.append(image)
+
+    if non_existent_images:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=f'Images with those uuids were not found: {", ".join(map(lambda i: str(i), non_existent_images))}',
+        )
+
+    for image in (
+        await item_data_of.images.filter(uuid__not_in=[str(image_uuid) for image_uuid in data.images])
+        + await item_to_delete.images.filter(uuid__not_in=[str(image_uuid) for image_uuid in data.images])
+    ):
+        await image.delete()
+
+    for image in images:
+        image.item = item_data_of
+        image.is_main = data.main_image == image.uuid
+        await image.save()
+
+    await item_to_delete.delete()
+
+    if item_data_of.session is not None:
+        await item_data_of.session.save()
+
+    return PySupplyItemWithImages(
+        uuid=item_data_of.uuid,
+        name=item_data_of.name,
+        description=item_data_of.description,
+        publisher=item_data_of.publisher,
+        release_date=item_data_of.release_date,
+        upca=item_data_of.upca,
+        upc5=item_data_of.upc5,
+        cover_price=item_data_of.cover_price,
+        condition_prices=item_data_of.condition_prices,
+        price_category=(
+            PyPriceCategory.from_orm(item_data_of.price_category)
+            if item_data_of.price_category is not None else None
+        ),
+        parse_status=item_data_of.parse_status,
+        related_links=item_data_of.related_links,
+        images=[
+            PySupplyImage.from_orm(image)
+            for image in images
+        ],
+        created=item_data_of.created,
+        updated=item_data_of.updated,
+    )
+
+
+@router.delete('/images/{image_uuid}', tags=[IMAGE_TAG])
 async def delete_image(
     image_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
-    image = await SupplyImage.get_or_none(pk=image_uuid)
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
+    image = await SupplyImage.get_or_none(uuid=image_uuid).select_related('item__session')
 
     if image is None:
         raise HTTPException(
@@ -226,9 +592,9 @@ async def delete_image(
             detail='Not found',
         )
 
-    s3 = S3ImageUploader()
+    await delete_image_from_s3(image)
 
-    await s3.delete_image(os.path.join(IMAGE_IMAGES_DIR, image_uuid))
-    await s3.delete_image(os.path.join(IMAGE_THUMBS_DIR, image_uuid))
+    if image.item is not None and image.item.session is not None:
+        await image.item.session.save()
 
-    return {'ok': True}
+    return DeleteResponse()

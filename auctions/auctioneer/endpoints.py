@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
@@ -5,7 +6,7 @@ from uuid import uuid4
 from fastapi import Depends
 from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRouter
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
 
 from auctions.accounts.models import PyUser
 from auctions.auctioneer.bid_validation import is_sniped, validate_bid
@@ -18,44 +19,58 @@ from auctions.auctioneer.models import (
     Bidder,
     BidValidationResult,
     ExternalAuction,
-    ExternalAuctionSet,
     ExternalAuctionTarget,
     ExternalBid,
-    ExternalBidder,
     ExternalSource,
+    InvalidBid,
     PyAuction,
-    PyAuctionOut,
     PyAuctionCloseOut,
-    PyAuctionCreateIn,
+    PyAuctionOut,
+    PyAuctionOutFull,
+    PyAuctionOutWithExternal,
+    PyAuctionOutWithExternalAndBids,
+    PyAuctionRerollIn,
     PyAuctionSet,
+    PyAuctionSetCloseOut,
+    PyAuctionSetCreate,
+    PyAuctionSetCreateOut,
     PyAuctionSetOut,
-    PyAuctionSetCreateIn,
+    PyAuctionTarget,
     PyAuctionTargetIn,
-    PyAuctionTargetOut,
     PyBid,
-    PyBidOut,
     PyBidCreateIn,
+    PyBidWithExternal,
+    PyBidder,
+    PyExternalAuctionOut,
     PyExternalAuctionSetOut,
+    PyExternalAuctionTarget,
     PyExternalAuctionTargetIn,
-    PyExternalAuctionTargetOut,
+    PyExternalBid,
     PyExternalBidCreateIn,
     PyExternalSource,
-    PyInvalidBid,
+    PyExternalSourceIn,
 )
 from auctions.auctioneer.reactor.internal import EventReactor
+from auctions.comics.models import Item, PyImageBase, PyItemType, PyItemWithImages, PyPriceCategory
 from auctions.config import AUCTION_CLOSE_LIMIT
 from auctions.depends import get_current_active_admin
+from auctions.utils.abstract_models import DeleteResponse
 
 
 router = APIRouter(redirect_slashes=False)
 
 
-DEFAULT_TAG = 'Auctions'
+EXTERNAL_SOURCE_TAG = 'Auction External Sources'
+AUCTION_TARGET_TAG = 'Auction Targets'
+AUCTION_SET_TAG = 'Auction Sets'
+AUCTION_TAG = 'Auctions'
+BID_TAG = 'Auction Bids'
+BIDDER_TAG = 'Auction Bidders'
 
 
-@router.get('/sources', tags=[DEFAULT_TAG])
+@router.get('/sources', tags=[EXTERNAL_SOURCE_TAG])
 async def list_external_sources(
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> list[PyExternalSource]:
     return [
         PyExternalSource.from_orm(source)
@@ -63,10 +78,10 @@ async def list_external_sources(
     ]
 
 
-@router.get('/sources/{source_code}', tags=[DEFAULT_TAG])
+@router.get('/sources/{source_code}', tags=[EXTERNAL_SOURCE_TAG])
 async def get_external_source(
     source_code: str,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyExternalSource:
     source = await ExternalSource.get_or_none(code=source_code)
 
@@ -79,10 +94,10 @@ async def get_external_source(
     return PyExternalSource.from_orm(source)
 
 
-@router.post('/sources', tags=[DEFAULT_TAG])
+@router.post('/sources', tags=[EXTERNAL_SOURCE_TAG])
 async def create_external_source(
-    data: PyExternalSource,
-    user: PyUser = Depends(get_current_active_admin),
+    data: PyExternalSourceIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyExternalSource:
     source, created = await ExternalSource.get_or_create(code=data.code, name=data.name)
 
@@ -95,11 +110,30 @@ async def create_external_source(
     return PyExternalSource.from_orm(source)
 
 
-@router.delete('/sources/{source_code}', tags=[DEFAULT_TAG])
+@router.put('/sources/{source_code}', tags=[EXTERNAL_SOURCE_TAG])
+async def update_external_source(
+    source_code: str,
+    data: PyExternalSourceIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyExternalSource:
+    source = await ExternalSource.get_or_none(code=source_code)
+
+    if source is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    source.name = data.name
+    await source.save()
+    return PyExternalSource.from_orm(source)
+
+
+@router.delete('/sources/{source_code}', tags=[EXTERNAL_SOURCE_TAG])
 async def delete_external_source(
     source_code: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
     source = await ExternalSource.get_or_none(code=source_code)
 
     if source is None:
@@ -109,54 +143,80 @@ async def delete_external_source(
         )
 
     await source.delete()
+    return DeleteResponse()
 
-    return {'ok': True}
 
-
-@router.get('/targets', tags=[DEFAULT_TAG])
+@router.get('/targets', tags=[AUCTION_TARGET_TAG])
 async def list_auction_targets(
-    user: PyUser = Depends(get_current_active_admin),
-) -> list[PyAuctionTargetOut]:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> list[PyAuctionTarget]:
     targets = await AuctionTarget.all()
 
     return [
-        PyAuctionTargetOut(
+        PyAuctionTarget(
             uuid=target.uuid,
             name=target.name,
-            external=[PyExternalAuctionTargetOut(
-                id=ext.pk,
-                name=ext.name,
-                source=PyExternalSource.from_orm(ext.source),
-                entity_id=ext.entity_id,
-                created=ext.created,
-            ) for ext in await target.external],
+            external=[
+                PyExternalAuctionTarget(
+                    id=ext.pk,
+                    source=PyExternalSource.from_orm(await ext.source),
+                    entity_id=ext.entity_id,
+                    created=ext.created,
+                ) for ext in await target.external
+            ],
             created=target.created,
         ) for target in targets
     ]
 
 
-@router.post('/targets', tags=[DEFAULT_TAG])
+@router.get('/targets/{target_uuid}', tags=[AUCTION_TARGET_TAG])
+async def get_auction_target(
+    target_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionTarget:
+    target = await AuctionTarget.get_or_none(uuid=target_uuid)
+
+    if target is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    return PyAuctionTarget(
+        uuid=target.uuid,
+        name=target.name,
+        external=[PyExternalAuctionTarget(
+            id=ext.pk,
+            source=PyExternalSource.from_orm(await ext.source),
+            entity_id=ext.entity_id,
+            created=ext.created,
+        ) for ext in await target.external],
+        created=target.created,
+    )
+
+
+@router.post('/targets', tags=[AUCTION_TARGET_TAG])
 async def create_auction_target(
     data: PyAuctionTargetIn,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyAuctionTargetOut:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionTarget:
     target, created = await AuctionTarget.get_or_create(name=data.name, defaults={'uuid': str(uuid4())})
 
     if not created:
         raise HTTPException(
             status_code=HTTP_409_CONFLICT,
-            detail='Target with this name already exists'
+            detail='Target with this name already exists',
         )
 
     external_targets = []
 
     for ext in data.external:
-        source = await ExternalSource.get_or_none(code=ext.source_code)
+        source = await ExternalSource.get_or_none(code=ext.source_id)
 
         if source is None:
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail='External source with specified code not found',
+                detail=f'External source with specified code not found: {ext.source_id}',
             )
 
         external_targets.append(
@@ -164,19 +224,17 @@ async def create_auction_target(
                 target=target,
                 source=source,
                 entity_id=ext.entity_id,
-                name=ext.name,
             )
         )
 
-    return PyAuctionTargetOut(
+    return PyAuctionTarget(
         uuid=target.uuid,
         name=target.name,
         external=[
-            PyExternalAuctionTargetOut(
+            PyExternalAuctionTarget(
                 id=ext.pk,
                 source=ext.source,
                 entity_id=ext.entity_id,
-                name=ext.name,
                 created=ext.created,
             ) for ext in external_targets
         ],
@@ -184,30 +242,74 @@ async def create_auction_target(
     )
 
 
-@router.post('/targets/external', tags=[DEFAULT_TAG])
-async def create_external_auction_target(
-    data: PyExternalAuctionTargetIn,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyExternalAuctionTargetOut:
-    target = await AuctionTarget.get_or_none(uuid=data.target_uuid)
+@router.put('/targets/{target_uuid}', tags=[AUCTION_TARGET_TAG])
+async def update_auction_target(
+    target_uuid: str,
+    data: PyAuctionTargetIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionTarget:
+    target = await AuctionTarget.get_or_none(uuid=target_uuid)
 
     if target is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail='Auction target with specified UUID not found',
+            detail='Not found',
         )
 
-    source = await ExternalSource.get_or_none(code=data.source_code)
+    for ext in data.external:
+        external_target, created = await ExternalAuctionTarget.get_or_create(
+            pk=ext.id,
+            defaults={'target_id': target.uuid, **ext.dict(exclude_unset=True)},
+        )
+
+        if not created:
+            external_target.entity_id = ext.entity_id
+            await external_target.save()
+
+    return PyAuctionTarget(
+        uuid=target.uuid,
+        name=target.name,
+        external=[
+            PyExternalAuctionTarget(
+                id=ext.pk,
+                source=PyExternalSource.from_orm(await ext.source),
+                entity_id=ext.entity_id,
+                created=ext.created,
+            ) for ext in await target.external
+        ],
+        created=target.created,
+    )
+
+
+@router.post(
+    '/targets/{target_uuid}/external',
+    tags=[AUCTION_TARGET_TAG],
+    status_code=HTTP_201_CREATED,
+)
+async def create_external_auction_target(
+    target_uuid: str,
+    data: PyExternalAuctionTargetIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyExternalAuctionTarget:
+    target = await AuctionTarget.get_or_none(uuid=target_uuid)
+
+    if target is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=f'Auction target with specified UUID not found: {target_uuid}',
+        )
+
+    source = await ExternalSource.get_or_none(code=data.source_id)
 
     if source is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail='External source with specified code not found',
+            detail=f'External source with specified code not found: {data.source_id}',
         )
 
     external_target, created = await ExternalAuctionTarget.get_or_create(
-        name=data.name,
-        defaults={'uuid': str(uuid4())},
+        source=source,
+        entity_id=data.entity_id,
     )
 
     if not created:
@@ -216,21 +318,20 @@ async def create_external_auction_target(
             detail='External target with this name already exists',
         )
 
-    return PyExternalAuctionTargetOut(
+    return PyExternalAuctionTarget(
         id=external_target.pk,
         source=PyExternalSource.from_orm(source),
-        name=external_target.name,
         entity_id=external_target.entity_id,
         created=external_target.created,
     )
 
 
-@router.delete('/targets/{target_id}', tags=[DEFAULT_TAG])
+@router.delete('/targets/{target_uuid}', tags=[AUCTION_TARGET_TAG])
 async def delete_auction_target(
     target_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
-    target = await AuctionSet.get_or_none(uuid=target_uuid)
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
+    target = await AuctionTarget.get_or_none(uuid=target_uuid)
 
     if target is None:
         raise HTTPException(
@@ -238,20 +339,17 @@ async def delete_auction_target(
             detail='Not found',
         )
 
-    for ext in await target.external:
-        await ext.delete()
-
     await target.delete()
+    return DeleteResponse()
 
-    return {'ok': True}
 
-
-@router.get('/targets/external/{target_id}', tags=[DEFAULT_TAG])
+@router.delete('/targets/{target_uuid}/external/{target_id}', tags=[AUCTION_TARGET_TAG])
 async def delete_external_auction_target(
-    external_target_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
-    external_target = await AuctionSet.get_or_none(uuid=external_target_uuid)
+    target_uuid: str,  # noqa
+    target_id: int,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
+    external_target = await ExternalAuctionTarget.get_or_none(pk=target_id)
 
     if external_target is None:
         raise HTTPException(
@@ -260,32 +358,32 @@ async def delete_external_auction_target(
         )
 
     await external_target.delete()
+    return DeleteResponse()
 
-    return {'ok': True}
 
-
-@router.get('/sets', tags=[DEFAULT_TAG])
+@router.get('/sets', tags=[AUCTION_SET_TAG])
 async def list_auction_sets(
     active_only: bool = False,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> list[PyAuctionSetOut]:
     if active_only:
-        query = AuctionSet.filter(is_active=True).select_related('target__source')
+        query = AuctionSet.filter(is_active=True).select_related('target')
     else:
-        query = AuctionSet.all().select_related('target__source')
+        query = AuctionSet.all().select_related('target')
+
+    query = query.order_by('-created')
 
     return [
         PyAuctionSetOut(
             uuid=auction_set.uuid,
-            target=PyAuctionTargetOut(
+            target=PyAuctionTarget(
                 uuid=auction_set.target.pk,
                 name=auction_set.target.name,
                 external=[
-                    PyExternalAuctionTargetOut(
+                    PyExternalAuctionTarget(
                         id=ext.pk,
-                        source=ext.source,
+                        source=PyExternalSource.from_orm(await ext.source),
                         entity_id=ext.entity_id,
-                        name=ext.name,
                         created=ext.created,
                     ) for ext in await auction_set.target.external
                 ],
@@ -294,11 +392,66 @@ async def list_auction_sets(
             external=[
                 PyExternalAuctionSetOut(
                     id=ext.pk,
-                    source=ext.source,
+                    source=PyExternalSource.from_orm(await ext.source),
                     entity_id=ext.entity_id,
                     created=ext.created,
                     updated=ext.updated,
                 ) for ext in await auction_set.external
+            ],
+            date_due=auction_set.date_due,
+            anti_sniper=auction_set.anti_sniper,
+            started=auction_set.started,
+            ended=auction_set.ended,
+            auctions=[
+                PyAuctionOutWithExternal(
+                    uuid=auction.uuid,
+                    item=PyItemWithImages(
+                        uuid=auction.item.uuid,
+                        name=auction.item.name,
+                        type=PyItemType(
+                            id=auction.item.type.id,
+                            name=auction.item.type.name,
+                            price_category=(
+                                PyPriceCategory.from_orm(auction.item.type.price_category)
+                                if auction.item.type.price_category is not None else None
+                            ),
+                            created=auction.item.type.created,
+                            updated=auction.item.type.updated,
+                        ),
+                        price_category=(
+                            PyPriceCategory.from_orm(auction.item.price_category)
+                            if auction.item.price_category is not None else None
+                        ),
+                        images=[PyImageBase.from_orm(image) for image in await auction.item.images],
+                        upca=auction.item.upca,
+                        upc5=auction.item.upc5,
+                        created=auction.item.created,
+                        updated=auction.item.updated,
+                    ),
+                    date_due=auction.date_due,
+                    buy_now_price=auction.buy_now_price,
+                    buy_now_expires=auction.buy_now_expires,
+                    bid_start_price=auction.bid_start_price,
+                    bid_min_step=auction.bid_min_step,
+                    bid_multiple_of=auction.bid_multiple_of,
+                    is_active=auction.is_active,
+                    external=[
+                        PyExternalAuctionOut(
+                            id=ext.pk,
+                            source=PyExternalSource.from_orm(ext.source),
+                            entity_id=ext.entity_id,
+                            created=ext.created,
+                            updated=ext.updated,
+                        )
+                        for ext in await auction.external.filter().select_related('source')
+                    ],
+                    created=auction.created,
+                    updated=auction.updated,
+                )
+                for auction in await auction_set.auctions.filter().select_related(
+                    'item__price_category',
+                    'item__type__price_category',
+                )
             ],
             created=auction_set.created,
             updated=auction_set.updated,
@@ -306,10 +459,10 @@ async def list_auction_sets(
     ]
 
 
-@router.get('/sets/{set_uuid}', tags=[DEFAULT_TAG])
+@router.get('/sets/{set_uuid}', tags=[AUCTION_SET_TAG])
 async def get_auction_set(
     set_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSetOut:
     auction_set = await AuctionSet.get_or_none(pk=set_uuid).select_related('target')
 
@@ -321,35 +474,279 @@ async def get_auction_set(
 
     return PyAuctionSetOut(
         uuid=auction_set.uuid,
-        target=auction_set.target,
+        target=PyAuctionTarget(
+            uuid=auction_set.target.pk,
+            name=auction_set.target.name,
+            external=[
+                PyExternalAuctionTarget(
+                    id=ext.pk,
+                    source=PyExternalSource.from_orm(await ext.source),
+                    entity_id=ext.entity_id,
+                    created=ext.created,
+                ) for ext in await auction_set.target.external
+            ],
+            created=auction_set.target.created,
+        ),
         external=[
             PyExternalAuctionSetOut(
                 id=ext.pk,
-                source=ext.source,
+                source=PyExternalSource.from_orm(await ext.source),
                 entity_id=ext.entity_id,
                 created=ext.created,
                 updated=ext.updated,
             ) for ext in await auction_set.external
+        ],
+        date_due=auction_set.date_due,
+        anti_sniper=auction_set.anti_sniper,
+        started=auction_set.started,
+        ended=auction_set.ended,
+        auctions=[
+            PyAuctionOutWithExternal(
+                uuid=auction.uuid,
+                item=PyItemWithImages(
+                    uuid=auction.item.uuid,
+                    name=auction.item.name,
+                    type=PyItemType(
+                        id=auction.item.type.id,
+                        name=auction.item.type.name,
+                        price_category=(
+                            PyPriceCategory.from_orm(auction.item.type.price_category)
+                            if auction.item.type.price_category is not None else None
+                        ),
+                        created=auction.item.type.created,
+                        updated=auction.item.type.updated,
+                    ),
+                    price_category=(
+                        PyPriceCategory.from_orm(auction.item.price_category)
+                        if auction.item.price_category is not None else None
+                    ),
+                    images=[PyImageBase.from_orm(image) for image in await auction.item.images],
+                    upca=auction.item.upca,
+                    upc5=auction.item.upc5,
+                    created=auction.item.created,
+                    updated=auction.item.updated,
+                ),
+                date_due=auction.date_due,
+                buy_now_price=auction.buy_now_price,
+                buy_now_expires=auction.buy_now_expires,
+                bid_start_price=auction.bid_start_price,
+                bid_min_step=auction.bid_min_step,
+                bid_multiple_of=auction.bid_multiple_of,
+                is_active=auction.is_active,
+                external=[
+                    PyExternalAuctionOut(
+                        id=ext.pk,
+                        source=PyExternalSource.from_orm(ext.source),
+                        entity_id=ext.entity_id,
+                        created=ext.created,
+                        updated=ext.updated,
+                    )
+                    for ext in await auction.external.filter().select_related('source')
+                ],
+                created=auction.created,
+                updated=auction.updated,
+            )
+            for auction in await auction_set.auctions.filter().select_related(
+                'item__price_category',
+                'item__type__price_category',
+            )
         ],
         created=auction_set.created,
         updated=auction_set.updated,
     )
 
 
-@router.post('/sets', tags=[DEFAULT_TAG])
+@router.post('/sets', tags=[AUCTION_SET_TAG])
 async def create_auction_set(
-    data: PyAuctionSetCreateIn,
-    user: PyUser = Depends(get_current_active_admin),
+    data: PyAuctionSetCreate,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionSetCreateOut:
+    items: list[dict] = data.dict()['quantities']
+
+    target = await AuctionTarget.get_or_none(uuid=data.target_uuid)
+
+    if target is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail=f'Auction target with given UUID is not found: {data.target_uuid}'
+        )
+
+    auction_set = await AuctionSet.create(
+        target=target,
+        date_due=data.date_due,
+        anti_sniper=data.anti_sniper,
+    )
+
+    for category in items:
+        for price in category['prices']:
+            price['items'] = []
+
+            if price['quantity'] == 0:
+                continue
+
+            price_items = await Item.filter(
+                auction__isnull=True,
+                type_id=category['item_type_id'],
+                price_category_id=price['price_category_id'],
+            ).limit(price['quantity']).select_related('type__price_category', 'price_category')
+            del price['quantity']
+
+            for item in price_items:
+                item_price_category = item.price_category or item.type.price_category
+
+                if item_price_category is None:
+                    continue
+
+                auction = await Auction.create(
+                    set=auction_set,
+                    item=item,
+                    date_due=auction_set.date_due,
+                    buy_now_price=item_price_category.buy_now_price,
+                    buy_now_expires=item_price_category.buy_now_expires,
+                    bid_start_price=item_price_category.bid_start_price,
+                    bid_min_step=item_price_category.bid_min_step,
+                    bid_multiple_of=item_price_category.bid_multiple_of,
+                    active=False,
+                )
+
+                price['items'].append(
+                    PyAuctionOut(
+                        uuid=auction.uuid,
+                        item=PyItemWithImages(
+                            uuid=auction.item.uuid,
+                            name=auction.item.name,
+                            type=PyItemType(
+                                id=auction.item.type.id,
+                                name=auction.item.type.name,
+                                price_category=(
+                                    PyPriceCategory.from_orm(item.type.price_category)
+                                    if item.type.price_category is not None else None
+                                ),
+                                created=auction.item.type.created,
+                                updated=auction.item.type.updated,
+                            ),
+                            price_category=(
+                                PyPriceCategory.from_orm(item_price_category)
+                                if auction.item.price_category is not None else None
+                            ),
+                            images=[PyImageBase.from_orm(image) for image in await auction.item.images],
+                            upca=auction.item.upca,
+                            upc5=auction.item.upc5,
+                            created=auction.item.created,
+                            updated=auction.item.updated,
+                        ),
+                        date_due=auction.date_due,
+                        buy_now_price=auction.buy_now_price,
+                        buy_now_expires=auction.buy_now_expires,
+                        bid_start_price=auction.bid_start_price,
+                        bid_min_step=auction.bid_min_step,
+                        bid_multiple_of=auction.bid_multiple_of,
+                        is_active=auction.is_active,
+                        created=auction.created,
+                        updated=auction.updated,
+                    )
+                )
+
+    return PyAuctionSetCreateOut(
+        uuid=auction_set.uuid,
+        target_uuid=auction_set.target.uuid,
+        date_due=auction_set.date_due,
+        anti_sniper=auction_set.anti_sniper,
+        items=items,
+    )
+
+
+@router.post('/sets/{set_uuid}/start', tags=[AUCTION_SET_TAG])
+async def start_auction_set(
+    set_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSet:
-    auction_set = await AuctionSet.create(**data.dict())  # TODO
-    return PyAuctionSet.from_orm(auction_set)
+    now = datetime.now()
+
+    auction_set = await AuctionSet.get_or_none(uuid=set_uuid).select_related('target')
+
+    if auction_set is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    auction_set.started = now
+
+    for auction in await auction_set.auctions:
+        auction.is_active = True
+        auction.started = now
+        await auction.save()
+
+    await EventReactor.react_auction_set_started(auction_set)
+    await auction_set.save()
+
+    return PyAuctionSet(
+        uuid=auction_set.uuid,
+        target=PyAuctionTarget(
+            uuid=auction_set.target.uuid,
+            name=auction_set.target.name,
+            external=[
+                PyExternalAuctionTarget(
+                    id=ext.pk,
+                    source=ext.source,
+                    entity_id=ext.entity_id,
+                    created=ext.created,
+                )
+                for ext in await auction_set.target.external.filter().select_related('source')
+            ],
+            created=auction_set.target.created,
+        ),
+        date_due=auction_set.date_due,
+        anti_sniper=auction_set.anti_sniper,
+        started=auction_set.started,
+        ended=auction_set.ended,
+        created=auction_set.created,
+        updated=auction_set.updated,
+    )
 
 
-@router.delete('/sets/{set_uuid}', tags=[DEFAULT_TAG])
+@router.post('/sets/{set_uuid}/close', tags=[AUCTION_SET_TAG])
+async def close_auction_set(
+    set_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionSetCloseOut:
+    now = datetime.now()
+
+    auction_set = await AuctionSet.get_or_none(uuid=set_uuid)
+
+    if auction_set is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    auction_close_statuses = []
+    can_close = True
+
+    for auction in await auction_set.auctions:
+        auction_status = await maybe_close_auction(auction)
+        if auction_status.code == AuctionCloseCodeType.NOT_CLOSED_YET:
+            can_close = False
+
+        auction_close_statuses.append(auction_status)
+
+    if can_close:
+        auction_set.ended = now
+        await auction_set.save()
+
+    return PyAuctionSetCloseOut(
+        uuid=set_uuid,
+        ended=auction_set.ended,
+        auction_statuses=auction_close_statuses,
+    )
+
+
+@router.delete('/sets/{set_uuid}', tags=[AUCTION_SET_TAG])
 async def delete_auction_set(
     set_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
     auction_set = await AuctionSet.get_or_none(pk=set_uuid)
 
     if auction_set is None:
@@ -359,15 +756,14 @@ async def delete_auction_set(
         )
 
     await auction_set.delete()
+    return DeleteResponse()
 
-    return {'ok': True}
 
-
-@router.get('/auctions', tags=[DEFAULT_TAG])
+@router.get('/auctions', tags=[AUCTION_TAG])
 async def list_auctions(
     set_uuid: Optional[str] = None,
     active_only: bool = False,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> list[PyAuction]:
     query_params = {}
 
@@ -380,12 +776,16 @@ async def list_auctions(
     return [PyAuction.from_orm(auction) for auction in await Auction.filter(**query_params)]
 
 
-@router.get('/auctions/{auction_uuid}', tags=[DEFAULT_TAG])
+@router.get('/auctions/{auction_uuid}', tags=[AUCTION_TAG])
 async def get_auction(
     auction_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyAuction:
-    auction = await Auction.get_or_none(pk=auction_uuid)
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionOutWithExternalAndBids:
+    auction = await Auction.get_or_none(pk=auction_uuid).select_related(
+        'set__target',
+        'item__price_category',
+        'item__type__price_category',
+    )
 
     if auction is None:
         raise HTTPException(
@@ -393,22 +793,248 @@ async def get_auction(
             detail='Not found',
         )
 
-    return PyAuction.from_orm(auction)
+    PyBidWithExternal.update_forward_refs()
+
+    return PyAuctionOutFull(
+        uuid=auction.uuid,
+        item=PyItemWithImages(
+            uuid=auction.item.uuid,
+            name=auction.item.name,
+            type=PyItemType(
+                id=auction.item.type.pk,
+                name=auction.item.type.name,
+                price_category=(
+                    PyPriceCategory.from_orm(await auction.item.type.price_category)
+                    if auction.item.type.price_category is not None else None
+                ),
+                created=auction.item.type.created,
+                updated=auction.item.type.updated,
+            ),
+            price_category=PyPriceCategory.from_orm(auction.item.price_category),
+            upca=auction.item.upca,
+            upc5=auction.item.upc5,
+            images=[
+                PyImageBase.from_orm(image)
+                for image in await auction.item.images
+            ],
+            created=auction.item.created,
+            updated=auction.item.updated,
+        ),
+        set=PyAuctionSet(
+            uuid=auction.set.uuid,
+            target=PyAuctionTarget(
+                uuid=auction.set.target.uuid,
+                name=auction.set.target.name,
+                external=[
+                    PyExternalAuctionTarget(
+                        id=ext.pk,
+                        source=PyExternalSource.from_orm(await ext.source),
+                        entity_id=ext.entity_id,
+                        created=ext.created,
+                    )
+                    for ext in await auction.set.target.external
+                ],
+                created=auction.set.target.created,
+            ),
+            date_due=auction.set.date_due,
+            anti_sniper=auction.set.anti_sniper,
+            started=auction.set.started,
+            ended=auction.set.ended,
+            created=auction.set.created,
+            updated=auction.set.updated,
+        ),
+        date_due=auction.date_due,
+        buy_now_price=auction.buy_now_price,
+        buy_now_expires=auction.buy_now_expires,
+        bid_start_price=auction.bid_start_price,
+        bid_min_step=auction.bid_min_step,
+        bid_multiple_of=auction.bid_multiple_of,
+        bids=[
+            PyBidWithExternal(
+                id=bid.pk,
+                bidder=PyBidder(
+                    id=bid.bidder.pk,
+                    last_name=bid.bidder.last_name,
+                    first_name=bid.bidder.first_name,
+                    created=bid.bidder.created,
+                    updated=bid.bidder.updated,
+                ),
+                external=PyExternalBid(
+                    id=(await bid.external).pk,
+                    source=PyExternalSource.from_orm(await (await bid.external).source),
+                    entity_id=(await bid.external).entity_id,
+                    created=(await bid.external).created,
+                ) if await bid.external is not None else None,
+                value=bid.value,
+                is_buyout=bid.is_buyout,
+                is_sniped=bid.is_sniped,
+                created=bid.created,
+            )
+            for bid in await auction.bids.filter().select_related('bidder')
+        ],
+        external=[
+            PyExternalAuctionOut(
+                id=ext.pk,
+                source=PyExternalSource.from_orm(ext.source),
+                entity_id=ext.entity_id,
+                created=ext.created,
+                updated=ext.updated,
+            )
+            for ext in await auction.external.filter().select_related('source')
+        ],
+        is_active=auction.is_active,
+        created=auction.created,
+        updated=auction.updated,
+    )
 
 
-@router.post('/auctions', tags=[DEFAULT_TAG])
-async def create_auction(
-    data: PyAuctionCreateIn,
-    user: PyUser = Depends(get_current_active_admin),
+@router.post('/auctions/{auction_uuid}/reroll', tags=[AUCTION_TAG])
+async def reroll_auction(
+    auction_uuid: str,
+    data: PyAuctionRerollIn,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuction:
-    auction = await Auction.create(**data.dict())  # TODO
-    return PyAuction.from_orm(auction)
+    auction_old = await Auction.get_or_none(uuid=auction_uuid).select_related(
+        'set',
+        'item__price_category',
+        'item__type__price_category',
+    )
+
+    if auction_old is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    if auction_old.set.started is not None:
+        raise HTTPException(
+            status_code=HTTP_409_CONFLICT,
+            detail='Cannot reroll an auction of already started/ended set',
+        )
+
+    set_ = auction_old.set
+    item = auction_old.item
+
+    item_candidates = await Item.filter(
+        uuid__not=item.uuid,
+        auction__isnull=True,
+        type=data.item_type_id,
+        price_category_id=data.price_category_id,
+    )
+
+    try:
+        item = random.choice(item_candidates)
+    except IndexError:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Cannot get an item matching query',
+        )
+
+    item_type = await item.type
+    price_category = await item.price_category
+    if price_category is None:
+        price_category = await item_type.price_category
+
+    auction = await Auction.create(
+        set=set_,
+        item=item,
+        date_due=set_.date_due,
+        buy_now_price=price_category.buy_now_price,
+        buy_now_expires=price_category.buy_now_expires,
+        bid_start_price=price_category.bid_start_price,
+        bid_min_step=price_category.bid_min_step,
+        bid_multiple_of=price_category.bid_multiple_of,
+        active=False,
+    )
+
+    await auction_old.delete()
+
+    return PyAuction(
+        uuid=auction.uuid,
+        item=PyItemWithImages(
+            uuid=auction.item.uuid,
+            name=auction.item.name,
+            type=PyItemType(
+                id=item_type.pk,
+                name=item_type.name,
+                price_category=(
+                    PyPriceCategory.from_orm(await item_type.price_category)
+                    if await item_type.price_category is not None else None
+                ),
+                created=item_type.created,
+                updated=item_type.updated,
+            ),
+            price_category=PyPriceCategory.from_orm(price_category),
+            upca=auction.item.upca,
+            upc5=auction.item.upc5,
+            images=[
+                PyImageBase.from_orm(image)
+                for image in await auction.item.images
+            ],
+            created=auction.item.created,
+            updated=auction.item.updated,
+        ),
+        is_active=auction.is_active,
+        created=auction.created,
+        updated=auction.updated,
+    )
 
 
-@router.delete('/auctions/{auction_uuid}', tags=[DEFAULT_TAG])
+@router.post('/auctions/{auction_uuid}/close', tags=[AUCTION_TAG])
+async def close_auction(
+    auction_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionCloseOut:
+    auction = await Auction.get_or_none(pk=auction_uuid).select_related('set__target')
+
+    if auction is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    return await maybe_close_auction(auction)
+
+
+async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
+    now = datetime.now()
+
+    auction_date_due_timestamp = int(auction.date_due.timestamp())
+
+    if auction_date_due_timestamp - AUCTION_CLOSE_LIMIT > now:
+        return PyAuctionCloseOut(
+            auction_id=auction.uuid,
+            code=AuctionCloseCodeType.NOT_CLOSED_YET,
+            retry_at=auction_date_due_timestamp,
+        )
+    else:
+        if not auction.is_active:
+            return PyAuctionCloseOut(
+                auction_id=auction.uuid,
+                code=AuctionCloseCodeType.ALREADY_CLOSED,
+            )
+
+    auction.is_active = False
+    await auction.save()
+    await EventReactor.react_auction_closed(auction)
+
+    last_bid = await auction.get_last_bid()
+
+    if last_bid is not None:
+        await last_bid.fetch_related('bidder')
+        if not last_bid.bidder.has_unclosed_auctions(auction.set):
+            await EventReactor.react_auction_winner(last_bid)
+
+    return PyAuctionCloseOut(
+        auction_id=auction.uuid,
+        code=AuctionCloseCodeType.CLOSED,
+    )
+
+
+@router.delete('/auctions/{auction_uuid}', tags=[AUCTION_TAG])
 async def delete_auction(
     auction_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> dict[str, bool]:
     auction = await Auction.get_or_none(pk=auction_uuid)
 
@@ -419,40 +1045,14 @@ async def delete_auction(
         )
 
     await auction.delete()
-
     return {'ok': True}
 
 
-@router.get('/auctions/{auction_uuid}/bids', tags=[DEFAULT_TAG])
-async def list_bids(
-    auction_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> list[PyBid]:
-    return [PyBid.from_orm(bid) for bid in await Bid.filter(auction_uuid=auction_uuid)]
-
-
-@router.get('/auctions/{auction_uuid}/bids/{bid_id}', tags=[DEFAULT_TAG])
-async def get_bid(
-    auction_uuid: str,
-    bid_id: int,
-    user: PyUser = Depends(get_current_active_admin),
-) -> PyBid:
-    bid = await Bid.get_or_none(pk=bid_id, auction_id=auction_uuid)
-
-    if bid is None:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail='Not found',
-        )
-
-    return PyBid.from_orm(bid)
-
-
-@router.post('/auctions/{auction_uuid}/bids', tags=[DEFAULT_TAG])
+@router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG])
 async def create_bid(
     auction_uuid: str,
     data: PyBidCreateIn,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBid:
     now = datetime.now()
 
@@ -461,7 +1061,7 @@ async def create_bid(
     if bidder is None:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Bidder with provided id not found')
 
-    auction = await Auction.get_or_none(pk=auction_uuid)
+    auction = await Auction.get_or_none(uuid=auction_uuid)
 
     if auction is None:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Not found')
@@ -470,7 +1070,7 @@ async def create_bid(
 
     if bid_validation_result == BidValidationResult.INVALID_BUYOUT:
         await EventReactor.react_invalid_buyout(
-            PyInvalidBid(
+            InvalidBid(
                 value=str(data.value),
                 auction=auction,
             )
@@ -482,7 +1082,7 @@ async def create_bid(
         )
     elif bid_validation_result in (BidValidationResult.INVALID_BID, BidValidationResult.INVALID_BEATING):
         await EventReactor.react_invalid_bid(
-            PyInvalidBid(
+            InvalidBid(
                 value=str(data.value),
                 auction=auction,
             )
@@ -508,22 +1108,26 @@ async def create_bid(
     return PyBid.from_orm(bid)
 
 
-@router.post('/auctions/ext:{external_source_id}:{external_target_id}:{external_auction_id}/bids', tags=[DEFAULT_TAG])
+@router.post(
+    '/auctions/ext:{external_source_id}:{external_target_id}:{external_auction_id}/bids',
+    tags=[BID_TAG],
+    status_code=HTTP_201_CREATED,
+)
 async def create_external_bid(
     external_source_id: str,
     external_target_id: int,
     external_auction_id: int,
     data: PyExternalBidCreateIn,
-    user: PyUser = Depends(get_current_active_admin),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBid:
     now = datetime.now()
 
-    source: ExternalSource = await ExternalSource.get_or_none(pk=external_source_id)
+    source = await ExternalSource.get_or_none(pk=external_source_id)
 
     if source is None:
         raise HTTPException(status_code=HTTP_422_UNPROCESSABLE_ENTITY, detail='Unsupported external source')
 
-    external_target: ExternalAuctionTarget = await ExternalAuctionTarget.get_or_none(
+    external_target = await ExternalAuctionTarget.get_or_none(
         entity_id=external_target_id,
         source=source,
     ).select_related('target')
@@ -531,7 +1135,7 @@ async def create_external_bid(
     if external_target is None:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Provided target not found')
 
-    external_auction: ExternalAuction = await ExternalAuction.get_or_none(
+    external_auction = await ExternalAuction.get_or_none(
         entity_id=external_auction_id,
         source=source,
     ).select_related('auction__set')
@@ -543,7 +1147,7 @@ async def create_external_bid(
 
     if bid_validation_result == BidValidationResult.INVALID_BUYOUT:
         return await EventReactor.react_invalid_buyout(
-            PyInvalidBid(
+            InvalidBid(
                 id=data.bid_id,
                 value=str(data.value),
                 auction=external_auction.auction,
@@ -554,7 +1158,7 @@ async def create_external_bid(
         )
     elif bid_validation_result in (BidValidationResult.INVALID_BID, BidValidationResult.INVALID_BEATING):
         return await EventReactor.react_invalid_bid(
-            PyInvalidBid(
+            InvalidBid(
                 id=data.bid_id,
                 value=str(data.value),
                 auction=external_auction.auction,
@@ -597,12 +1201,16 @@ async def create_external_bid(
     return PyBid.from_orm(bid)
 
 
-@router.delete('/auctions/{auction_uuid}/bids/{bid_id}', tags=[DEFAULT_TAG])
+@router.delete(
+    '/auctions/{auction_uuid}/bids/{bid_id}',
+    tags=[BID_TAG],
+    status_code=HTTP_201_CREATED,
+)
 async def delete_bid(
     auction_uuid: str,
     bid_id: str,
-    user: PyUser = Depends(get_current_active_admin),
-) -> dict[str, bool]:
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> DeleteResponse:
     bid = await Bid.get_or_none(pk=bid_id, auction_uuid=auction_uuid)
 
     if bid is None:
@@ -612,50 +1220,4 @@ async def delete_bid(
         )
 
     await bid.delete()
-
-    return {'ok': True}
-
-
-@router.post('/auctions/{auction_uuid}/close', tags=[DEFAULT_TAG])
-async def close_auction(
-    auction_uuid: str,
-    user: PyUser = Depends(get_current_active_admin),
-):
-    now = int(datetime.now().timestamp())
-
-    auction = await Auction.get_or_none(pk=auction_uuid).select_related('set')
-
-    if auction is None:
-        raise HTTPException(
-            status_code=HTTP_404_NOT_FOUND,
-            detail='Not found',
-        )
-
-    if int(auction.date_due.timestamp()) - AUCTION_CLOSE_LIMIT > now:
-        return PyAuctionCloseOut(
-            auction_uuid=auction.uuid,
-            code=AuctionCloseCodeType.NOT_CLOSED_YET,
-            retry_at=int(auction.date_due.timestamp()),
-        )
-    else:
-        if not auction.is_active:
-            return PyAuctionCloseOut(
-                auction_uuid=auction.uuid,
-                code=AuctionCloseCodeType.ALREADY_CLOSED,
-            )
-
-    auction.is_active = False
-    await auction.save()
-    await EventReactor.react_auction_closed(auction)
-
-    last_bid = await auction.get_last_bid()
-
-    if last_bid is not None:
-        await last_bid.fetch_related('bidder')
-        if not last_bid.bidder.has_unclosed_auctions(auction.set):
-            await EventReactor.react_auction_winner(last_bid)
-
-    return PyAuctionCloseOut(
-        auction_uuid=auction.uuid,
-        code=AuctionCloseCodeType.CLOSED,
-    )
+    return DeleteResponse()

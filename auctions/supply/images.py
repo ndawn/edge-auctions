@@ -1,6 +1,8 @@
+from io import BytesIO
 import os.path
-from uuid import uuid4
+import uuid
 
+from exif import Image as ExifImage
 from fastapi import UploadFile
 from fastapi.exceptions import HTTPException
 from PIL import Image as PillowImage
@@ -14,7 +16,7 @@ from auctions.config import (
     IMAGE_THUMB_BOUNDS,
     IMAGE_THUMBS_DIR,
 )
-from auctions.supply.models import SupplyImage, SupplyItem
+from auctions.supply.models import SupplyImage, SupplyItem, SupplyItemParseStatus, SupplySession
 from auctions.utils.barcode import scan_barcode
 from auctions.utils.s3 import S3ImageUploader
 
@@ -22,19 +24,26 @@ from auctions.utils.s3 import S3ImageUploader
 S3 = S3ImageUploader()
 
 
-async def process_image(file: UploadFile) -> tuple[SupplyImage, SupplyItem]:
+async def create_item_from_image(file: UploadFile, session: SupplySession) -> SupplyItem:
     file_extension = file.filename.rsplit('.', 1)[-1]
-    file_mime = IMAGE_MIME_TYPES.get(file_extension, IMAGE_DEFAULT_MIME_TYPE)
+    file_mime = IMAGE_MIME_TYPES.get(file_extension.lower(), IMAGE_DEFAULT_MIME_TYPE)
 
-    object_name = str(uuid4())
+    object_name = str(uuid.uuid4())
     object_path = os.path.join(IMAGE_IMAGES_DIR, object_name)
     thumb_path = os.path.join(IMAGE_THUMBS_DIR, object_name)
 
     object_temp_path = os.path.join(IMAGE_TEMP_DIR, f'{object_name}.{file_extension}')
     thumb_temp_path = os.path.join(IMAGE_TEMP_DIR, f'{object_name}.thumb.{file_extension}')
 
-    with open(object_temp_path, 'wb') as temp_file:
-        temp_file.write(await file.read())
+    file_raw = BytesIO(await file.read())
+    exif_data = ExifImage(file_raw)
+    exif_data['orientation'] = 1
+
+    file_raw = BytesIO(exif_data.get_file())
+    image_data = PillowImage.open(file_raw)
+    rotated_image = PillowImage.new('RGB', tuple(reversed(image_data.size)))  # noqa
+    rotated_image.paste(image_data.transpose(PillowImage.ROTATE_90))
+    rotated_image.save(object_temp_path)
 
     thumb: PillowImage.Image = PillowImage.open(object_temp_path)
     thumb.thumbnail(IMAGE_THUMB_BOUNDS, PillowImage.ANTIALIAS)
@@ -59,17 +68,35 @@ async def process_image(file: UploadFile) -> tuple[SupplyImage, SupplyItem]:
 
     upca, upc5 = scan_barcode(PillowImage.open(object_temp_path))
 
+    os.remove(object_temp_path)
+    os.remove(thumb_temp_path)
+
     db_item = await SupplyItem.create(
+        uuid=uuid.uuid4(),
+        parse_status=SupplyItemParseStatus.PENDING if upca and upc5 else SupplyItemParseStatus.FAILED,
+        session=session,
         upca=upca,
         upc5=upc5,
     )
 
-    db_image = await SupplyImage.create(
+    await SupplyImage.create(
         uuid=object_name,
         extension=file_extension,
         image_url=S3.get_image_url(object_path),
         thumb_url=S3.get_image_url(thumb_path),
+        item=db_item,
         is_main=True,
     )
 
-    return db_image, db_item
+    return db_item
+
+
+async def delete_image_from_s3(image: SupplyImage):
+    try:
+        await S3.delete_image(os.path.join(IMAGE_IMAGES_DIR, str(image.uuid)))
+        await S3.delete_image(os.path.join(IMAGE_THUMBS_DIR, str(image.uuid)))
+    except S3.throws as exception:
+        raise HTTPException(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f'Error occurred while deleting the file: {str(exception)}',
+        )

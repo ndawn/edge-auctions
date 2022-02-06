@@ -51,3 +51,7 @@ class PyRelatedMany(list):
             raise TypeError('tortoise.fields.relational.ReverseRelation required')
 
         return asyncio.get_running_loop().run_until_complete(value.all())
+
+
+class DeleteResponse(BaseModel):
+    ok: bool = True

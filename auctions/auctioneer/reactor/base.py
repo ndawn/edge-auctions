@@ -13,12 +13,15 @@ from auctions.auctioneer.models import (
     ExternalBid,
     ExternalBidder,
     ExternalSource,
-    PyInvalidBid,
+    InvalidBid,
 )
 
 
 class BaseEventReactor(ABC):
     SOURCE_ID: str
+
+    @staticmethod
+    async def react_auction_set_started(set: AuctionSet): ...
 
     @staticmethod
     async def react_auction_closed(auction: Auction): ...
@@ -36,10 +39,10 @@ class BaseEventReactor(ABC):
     async def react_bid_sniped(bid: Bid): ...
 
     @staticmethod
-    async def react_invalid_bid(bid: PyInvalidBid): ...
+    async def react_invalid_bid(bid: InvalidBid): ...
 
     @staticmethod
-    async def react_invalid_buyout(bid: PyInvalidBid): ...
+    async def react_invalid_buyout(bid: InvalidBid): ...
 
     @staticmethod
     async def react_bidder_created(bidder: Bidder, bid: Bid, source: Optional[ExternalSource] = None): ...

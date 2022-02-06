@@ -1,4 +1,5 @@
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
 
 from pydantic import BaseModel, Json
 
@@ -6,10 +7,11 @@ from pydantic import BaseModel, Json
 class Job(BaseModel):
     job_id: str
     function_name: str
-    args: Json
-    kwargs: Json
+    args: Any
+    kwargs: Any
+    finished_at: Optional[datetime]
     success: bool
-    result: Json
+    result: Any
 
 
 class User(BaseModel):

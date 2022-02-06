@@ -5,7 +5,7 @@ from pyzbar.pyzbar import decode, ZBarSymbol
 
 
 def scan_barcode(image: Image) -> tuple[Optional[str], Optional[str]]:
-    codes = decode(image, symbols=[ZBarSymbol.EAN13, ZBarSymbol.EAN5])
+    codes = decode(image, symbols=[ZBarSymbol.EAN13, ZBarSymbol.EAN5, ZBarSymbol.UPCA])
 
     upca = next(filter(lambda code: code.type == 'UPCA', codes), None)
     ean13 = next(filter(lambda code: code.type == 'EAN13', codes), None)

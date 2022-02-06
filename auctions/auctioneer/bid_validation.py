@@ -35,15 +35,36 @@ async def validate_bid(bid_value: int, auction: Auction) -> BidValidationResult:
 
 
 async def is_valid_bid(bid_value: int, auction: Auction) -> bool:
-    return bid_value >= auction.start_price and bid_value % auction.bid_multiple_of == 0
+    await auction.fetch_related('item__price_category', 'item__type__price_category')
+
+    if auction.item.price_category is not None:
+        price_category = auction.item.price_category
+    else:
+        price_category = auction.item.type.price_category
+
+    return bid_value >= price_category.bid_start_price and bid_value % price_category.bid_multiple_of == 0
 
 
 async def is_valid_beating(bid_value: int, previous_bid_value: int, auction: Auction) -> bool:
-    return bid_value < previous_bid_value + auction.bid_min_step
+    await auction.fetch_related('item__price_category', 'item__type__price_category')
+
+    if auction.item.price_category is not None:
+        price_category = auction.item.price_category
+    else:
+        price_category = auction.item.type.price_category
+
+    return bid_value < previous_bid_value + price_category.bid_min_step
 
 
 async def is_valid_buyout(previous_bid_value: int, auction: Auction) -> bool:
-    return previous_bid_value < auction.buy_now_expires
+    await auction.fetch_related('item__price_category', 'item__type__price_category')
+
+    if auction.item.price_category is not None:
+        price_category = auction.item.price_category
+    else:
+        price_category = auction.item.type.price_category
+
+    return previous_bid_value < price_category.buy_now_expires
 
 
 async def is_sniped(bid_date: datetime, auction: Auction) -> bool:

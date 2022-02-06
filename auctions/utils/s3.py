@@ -77,6 +77,9 @@ class S3ImageUploader:
         if 'ACL' not in extra_args:
             extra_args['ACL'] = self.aws_default_acl
 
+        if 'ContentType' not in extra_args:
+            extra_args['ContentType'] = config.IMAGE_DEFAULT_MIME_TYPE
+
         s3_bucket.upload_file(
             file_path,
             object_name,

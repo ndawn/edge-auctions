@@ -14,13 +14,16 @@ from auctions.auctioneer.message_strings import (
 )
 from auctions.auctioneer.models import (
     Auction,
+    AuctionSet,
     Bid,
     Bidder,
+    ExternalAuction,
+    ExternalAuctionSet,
     ExternalAuctionTarget,
     ExternalBid,
     ExternalBidder,
     ExternalSource,
-    PyInvalidBid,
+    InvalidBid,
 )
 from auctions.auctioneer.reactor.base import BaseEventReactor
 
@@ -56,6 +59,43 @@ class VkEventReactor(BaseEventReactor):
             reply_to=external_bid.entity_id,
             text=answer_string,
         )
+
+    @staticmethod
+    async def react_auction_set_started(set: AuctionSet):
+        source = await VkEventReactor.get_source()
+        external_target = await set.target.get_external(source)
+
+        album = await AmsApiService.create_album(
+            group_id=abs(external_target.entity_id),
+            title=f'[TEST] Аукционы до {set.date_due.strftime("%d.%m")}',
+        )
+
+        await ExternalAuctionSet.create(
+            set=set,
+            source=source,
+            entity_id=int(album.album.album_id),
+        )
+
+        auctions = await set.auctions.filter().select_related(
+            'item__price_category',
+            'item__type__price_category',
+        )
+
+        for auction in auctions:
+            images = await auction.item.images
+            main_image = next(filter(lambda image: image.is_main, images), None)
+
+            external_auction = await AmsApiService.upload_to_album(
+                album_id=album.album.album_id,
+                url=main_image.image_url,
+                description=auction.item.build_description(),
+            )
+
+            await ExternalAuction.create(
+                auction=auction,
+                source=source,
+                entity_id=int(external_auction['id']),
+            )
 
     @staticmethod
     async def react_auction_closed(auction: Auction):
@@ -132,7 +172,7 @@ class VkEventReactor(BaseEventReactor):
         return await VkEventReactor._bid_answer(bid, bid_sniped(date_due_string))
 
     @staticmethod
-    async def react_invalid_bid(bid: PyInvalidBid):
+    async def react_invalid_bid(bid: InvalidBid):
         if bid.source is None or bid.source != await VkEventReactor.get_source():
             return
 
@@ -144,7 +184,7 @@ class VkEventReactor(BaseEventReactor):
         )
 
     @staticmethod
-    async def react_invalid_buyout(bid: PyInvalidBid):
+    async def react_invalid_buyout(bid: InvalidBid):
         if bid.source is None or bid.source != await VkEventReactor.get_source():
             return
 
@@ -152,7 +192,9 @@ class VkEventReactor(BaseEventReactor):
             group_id=bid.target.entity_id,
             photo_id=bid.external_auction.entity_id,
             reply_to=bid.id,
-            text=buyout_expired(bid.auction.buy_now_expires),
+            text=buyout_expired(
+                (bid.auction.item.price_category or bid.auction.item.type.price_category).buy_now_expires
+            ),
         )
 
     @staticmethod
