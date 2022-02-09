@@ -1109,7 +1109,7 @@ async def create_bid(
 
 
 @router.post(
-    '/auctions/ext:{external_source_id}:{external_target_id}:{external_auction_id}/bids',
+    '/auctions/ext_{external_source_id}_{external_target_id}_{external_auction_id}/bids',
     tags=[BID_TAG],
     status_code=HTTP_201_CREATED,
 )
