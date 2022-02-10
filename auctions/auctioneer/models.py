@@ -117,6 +117,7 @@ class ExternalAuction(CreatedUpdatedRecordedModel):
 class Bidder(CreatedUpdatedRecordedModel):
     last_name = fields.CharField(max_length=255)
     first_name = fields.CharField(max_length=255)
+    avatar = fields.TextField()
 
     bids: fields.ReverseRelation["Bid"]
     external: fields.ReverseRelation["ExternalBidder"]
@@ -348,8 +349,9 @@ class PyAuctionRerollIn(BaseModel):
 
 class PyBidder(PyCreatedUpdatedRecordedModel):
     id: int
-    last_name: str
-    first_name: str
+    last_name: Optional[str]
+    first_name: Optional[str]
+    avatar: Optional[str]
 
     class Config:
         orm_mode = True
@@ -373,8 +375,9 @@ class PyExternalBidderOut(PyCreatedUpdatedRecordedModel):
 
 class PyBidderOut(PyCreatedUpdatedRecordedModel):
     id: int
-    last_name: str
-    first_name: str
+    last_name: Optional[str]
+    first_name: Optional[str]
+    avatar: Optional[str]
     external: list[PyExternalBidderOut]
 
 
