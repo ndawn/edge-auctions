@@ -2,6 +2,7 @@ import random
 from datetime import datetime
 from typing import Optional
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from fastapi.exceptions import HTTPException
@@ -52,7 +53,7 @@ from auctions.auctioneer.models import (
 )
 from auctions.auctioneer.reactor.internal import EventReactor
 from auctions.comics.models import Item, PyImageBase, PyItemType, PyItemWithImages, PyPriceCategory
-from auctions.config import AUCTION_CLOSE_LIMIT
+from auctions.config import AUCTION_CLOSE_LIMIT, DEFAULT_TIMEZONE
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
 
@@ -1060,7 +1061,7 @@ async def create_external_bid(
     data: PyExternalBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBidWithExternal:
-    now = datetime.now()
+    now = datetime.now(ZoneInfo('Europe/Moscow'))
 
     source = await ExternalSource.get_or_none(code=external_source_id)
 
@@ -1166,7 +1167,7 @@ async def create_bid(
     data: PyBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBid:
-    now = datetime.now()
+    now = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
 
     bidder = await Bidder.get_or_none(pk=data.bidder_id)
 

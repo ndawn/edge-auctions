@@ -34,6 +34,7 @@ AMS_URL = 'https://ams.edgecomics.ru/api'
 AMS_TOKEN = 'QAf0V-gi2OgZJnl5NjCUXwp2StFjceaHGpCxv20WbZxWtxiWlOexX5SaEggoOS-A'
 
 AUCTION_CLOSE_LIMIT = 10
+DEFAULT_TIMEZONE = 'Europe/Moscow'
 
 IMAGE_TEMP_DIR = os.path.join(BASE_DIR, 'temp')
 IMAGE_MIME_TYPES = {
