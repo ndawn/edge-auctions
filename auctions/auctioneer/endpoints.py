@@ -1004,14 +1004,14 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
 
     if auction_date_due_timestamp - AUCTION_CLOSE_LIMIT > now.timestamp():
         return PyAuctionCloseOut(
-            auction_id=auction.uuid,
+            auction_id=str(auction.uuid),
             code=AuctionCloseCodeType.NOT_CLOSED_YET,
             retry_at=auction_date_due_timestamp,
         )
     else:
         if not auction.is_active:
             return PyAuctionCloseOut(
-                auction_id=auction.uuid,
+                auction_id=str(auction.uuid),
                 code=AuctionCloseCodeType.ALREADY_CLOSED,
             )
 
@@ -1027,7 +1027,7 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
             await EventReactor.react_auction_winner(last_bid)
 
     return PyAuctionCloseOut(
-        auction_id=auction.uuid,
+        auction_id=str(auction.uuid),
         code=AuctionCloseCodeType.CLOSED,
     )
 

@@ -53,7 +53,7 @@ async def is_valid_beating(bid_value: int, previous_bid_value: int, auction: Auc
     else:
         price_category = auction.item.type.price_category
 
-    return bid_value < previous_bid_value + price_category.bid_min_step
+    return bid_value >= previous_bid_value + price_category.bid_min_step
 
 
 async def is_valid_buyout(previous_bid_value: int, auction: Auction) -> bool:

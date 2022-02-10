@@ -113,7 +113,7 @@ class AmsApiService:
     ) -> str:
         params = {
             'group_id': group_id,
-            'photo_id': comment_id,
+            'comment_id': comment_id,
         }
 
         return (await AmsApiService._request('DELETE', '/vk/comments', params, await_job=False))['job_id']
