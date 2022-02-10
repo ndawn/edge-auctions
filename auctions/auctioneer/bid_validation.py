@@ -13,7 +13,7 @@ async def validate_bid(bid_value: int, auction: Auction) -> BidValidationResult:
     last_bid = await auction.get_last_bid()
 
     if last_bid is None:
-        return BidValidationResult.VALID
+        return BidValidationResult.VALID_BID
 
     if bid_value == 0:
         if not await is_valid_buyout(
@@ -68,4 +68,5 @@ async def is_valid_buyout(previous_bid_value: int, auction: Auction) -> bool:
 
 
 async def is_sniped(bid_date: datetime, auction: Auction) -> bool:
-    return bid_date + timedelta(minutes=auction.anti_sniper) >= auction.date_due
+    await auction.fetch_related('set')
+    return bid_date + timedelta(minutes=auction.set.anti_sniper) >= auction.date_due
