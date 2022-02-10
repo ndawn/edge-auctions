@@ -1114,6 +1114,8 @@ async def create_external_bid(
     is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
     is_sniped_ = await is_sniped(now, auction=external_auction.auction)
 
+    last_bid = await external_auction.auction.get_last_bid()
+
     bid = await Bid.create(
         bidder=bidder,
         auction=external_auction.auction,
@@ -1121,6 +1123,9 @@ async def create_external_bid(
         is_sniped=is_sniped_,
         is_buyout=is_buyout,
     )
+
+    last_bid.next_bid = bid
+    await last_bid.save()
 
     external_bid = await ExternalBid.create(
         bid=bid,
@@ -1210,6 +1215,8 @@ async def create_bid(
     is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
     is_sniped_ = await is_sniped(now, auction=auction)
 
+    last_bid = await auction.get_last_bid()
+
     bid = await Bid.create(
         bidder=bidder,
         auction=auction,
@@ -1217,6 +1224,9 @@ async def create_bid(
         is_sniped=is_sniped_,
         is_buyout=is_buyout,
     )
+
+    last_bid.next_bid = bid
+    await last_bid.save()
 
     return PyBid(
         id=bid.pk,
