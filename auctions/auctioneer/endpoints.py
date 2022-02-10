@@ -1001,7 +1001,7 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
 
     auction_date_due_timestamp = int(auction.date_due.timestamp())
 
-    if auction_date_due_timestamp - AUCTION_CLOSE_LIMIT > now:
+    if auction_date_due_timestamp - AUCTION_CLOSE_LIMIT > now.timestamp():
         return PyAuctionCloseOut(
             auction_id=auction.uuid,
             code=AuctionCloseCodeType.NOT_CLOSED_YET,
