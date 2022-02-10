@@ -1138,6 +1138,7 @@ async def create_external_bid(
     else:
         await EventReactor.react_bid_beaten(bid)
 
+    PyBidWithExternal.update_forward_refs()
     return PyBidWithExternal(
         id=bid.pk,
         bidder=PyBidder(
