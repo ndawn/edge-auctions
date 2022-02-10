@@ -115,9 +115,9 @@ class ExternalAuction(CreatedUpdatedRecordedModel):
 
 
 class Bidder(CreatedUpdatedRecordedModel):
-    last_name = fields.CharField(max_length=255)
-    first_name = fields.CharField(max_length=255)
-    avatar = fields.TextField()
+    last_name = fields.CharField(max_length=255, null=True)
+    first_name = fields.CharField(max_length=255, null=True)
+    avatar = fields.TextField(null=True)
 
     bids: fields.ReverseRelation["Bid"]
     external: fields.ReverseRelation["ExternalBidder"]
