@@ -1124,8 +1124,9 @@ async def create_external_bid(
         is_buyout=is_buyout,
     )
 
-    last_bid.next_bid = bid
-    await last_bid.save()
+    if last_bid is not None:
+        last_bid.next_bid = bid
+        await last_bid.save()
 
     external_bid = await ExternalBid.create(
         bid=bid,
@@ -1225,8 +1226,9 @@ async def create_bid(
         is_buyout=is_buyout,
     )
 
-    last_bid.next_bid = bid
-    await last_bid.save()
+    if last_bid is not None:
+        last_bid.next_bid = bid
+        await last_bid.save()
 
     return PyBid(
         id=bid.pk,
