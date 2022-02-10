@@ -662,7 +662,7 @@ async def start_auction_set(
     set_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSet:
-    now = datetime.now()
+    now = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_set = await AuctionSet.get_or_none(uuid=set_uuid).select_related('target')
 
@@ -712,7 +712,7 @@ async def close_auction_set(
     set_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSetCloseOut:
-    now = datetime.now()
+    now = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_set = await AuctionSet.get_or_none(uuid=set_uuid)
 
@@ -998,7 +998,7 @@ async def close_auction(
 
 
 async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
-    now = datetime.now()
+    now = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_date_due_timestamp = int(auction.date_due.timestamp())
 
