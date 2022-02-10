@@ -1,6 +1,3 @@
-from fastapi.exceptions import HTTPException
-from starlette.status import HTTP_404_NOT_FOUND
-
 from auctions.ams.api import AmsApiService
 from auctions.auctioneer.message_strings import (
     auction_buyout,
@@ -19,13 +16,11 @@ from auctions.auctioneer.models import (
     Bidder,
     ExternalAuction,
     ExternalAuctionSet,
-    ExternalAuctionTarget,
-    ExternalBid,
-    ExternalBidder,
     ExternalSource,
     InvalidBid,
 )
 from auctions.auctioneer.reactor.base import BaseEventReactor
+from auctions.config import DEBUG
 
 
 class VkEventReactor(BaseEventReactor):
@@ -53,7 +48,7 @@ class VkEventReactor(BaseEventReactor):
         external_target = await bid.auction.set.target.get_external(source)
         external_auction = await bid.auction.get_external(source)
 
-        return await AmsApiService.send_comment(
+        await AmsApiService.send_comment(
             group_id=external_target.entity_id,
             photo_id=external_auction.entity_id,
             reply_to=external_bid.entity_id,
@@ -61,22 +56,22 @@ class VkEventReactor(BaseEventReactor):
         )
 
     @staticmethod
-    async def react_auction_set_started(set: AuctionSet):
+    async def react_auction_set_started(set_: AuctionSet):
         source = await VkEventReactor.get_source()
-        external_target = await set.target.get_external(source)
+        external_target = await set_.target.get_external(source)
 
         album = await AmsApiService.create_album(
             group_id=abs(external_target.entity_id),
-            title=f'[TEST] Аукционы до {set.date_due.strftime("%d.%m")}',
+            title=f'{"[TEST] " if DEBUG else ""}Аукционы до {set_.date_due.strftime("%d.%m")}',
         )
 
         await ExternalAuctionSet.create(
-            set=set,
+            set=set_,
             source=source,
             entity_id=int(album.album.album_id),
         )
 
-        auctions = await set.auctions.filter().select_related(
+        auctions = await set_.auctions.filter().select_related(
             'item__price_category',
             'item__type__price_category',
         )
@@ -106,7 +101,7 @@ class VkEventReactor(BaseEventReactor):
         external_target = await auction.set.target.get_external(source)
         external_auction = await auction.get_external(source)
 
-        return await AmsApiService.send_comment(
+        await AmsApiService.send_comment(
             group_id=external_target.entity_id,
             photo_id=external_auction.entity_id,
             text=auction_closed(),
@@ -148,7 +143,7 @@ class VkEventReactor(BaseEventReactor):
             for auction in bidder_external_auctions
         ]
 
-        return await AmsApiService.send_message(
+        await AmsApiService.send_message(
             group_id=external_target.entity_id,
             user_id=external_bidder.subject_id,
             text=winner_message(
@@ -160,28 +155,33 @@ class VkEventReactor(BaseEventReactor):
 
     @staticmethod
     async def react_auction_buyout(bid: Bid):
-        return await VkEventReactor._bid_answer(bid, auction_buyout())
+        await VkEventReactor._bid_answer(bid, auction_buyout())
 
     @staticmethod
     async def react_bid_beaten(bid: Bid):
-        return await VkEventReactor._bid_answer(bid, bid_beaten())
+        await VkEventReactor._bid_answer(bid, bid_beaten())
 
     @staticmethod
     async def react_bid_sniped(bid: Bid):
         await bid.fetch_related('auction')
         date_due_string = bid.auction.date_due.strftime('%H:%M')
-        return await VkEventReactor._bid_answer(bid, bid_sniped(date_due_string))
+        await VkEventReactor._bid_answer(bid, bid_sniped(date_due_string))
 
     @staticmethod
     async def react_invalid_bid(bid: InvalidBid):
         if bid.source is None or bid.source != await VkEventReactor.get_source():
             return
 
-        return await AmsApiService.send_comment(
+        await AmsApiService.send_comment(
             group_id=bid.target.entity_id,
             photo_id=bid.external_auction.entity_id,
             reply_to=bid.id,
             text=invalid_bid(),
+        )
+
+        await AmsApiService.delete_comment(
+            group_id=bid.target.entity_id,
+            comment_id=bid.id,
         )
 
     @staticmethod
@@ -189,7 +189,7 @@ class VkEventReactor(BaseEventReactor):
         if bid.source is None or bid.source != await VkEventReactor.get_source():
             return
 
-        return await AmsApiService.send_comment(
+        await AmsApiService.send_comment(
             group_id=bid.target.entity_id,
             photo_id=bid.external_auction.entity_id,
             reply_to=bid.id,
@@ -216,7 +216,7 @@ class VkEventReactor(BaseEventReactor):
         external_target = await bid.auction.set.target.get_external(source)
         external_auction = await bid.auction.get_external(source)
 
-        return await AmsApiService.send_comment(
+        await AmsApiService.send_comment(
             group_id=external_target.entity_id,
             photo_id=external_auction.entity_id,
             reply_to=external_bidder.subject_id,

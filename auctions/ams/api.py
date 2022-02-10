@@ -104,7 +104,19 @@ class AmsApiService:
         if reply_to is not None:
             params['reply_to'] = reply_to
 
-        return (await AmsApiService._request('POST', '/vk/comments', params))['job_id']
+        return (await AmsApiService._request('POST', '/vk/comments', params, await_job=False))['job_id']
+
+    @staticmethod
+    async def delete_comment(
+        group_id: int,
+        comment_id: int,
+    ) -> str:
+        params = {
+            'group_id': group_id,
+            'photo_id': comment_id,
+        }
+
+        return (await AmsApiService._request('DELETE', '/vk/comments', params, await_job=False))['job_id']
 
     @staticmethod
     async def send_message(

@@ -30,6 +30,8 @@ AWS_STORAGE_BUCKET_NAME = 'edge-auctions'
 AWS_DEFAULT_ACL = 'public-read'
 AWS_S3_REGION_NAME = 'eu-north-1'
 
+DEBUG = True
+
 AMS_URL = 'https://ams.edgecomics.ru/api'
 AMS_TOKEN = 'QAf0V-gi2OgZJnl5NjCUXwp2StFjceaHGpCxv20WbZxWtxiWlOexX5SaEggoOS-A'
 
