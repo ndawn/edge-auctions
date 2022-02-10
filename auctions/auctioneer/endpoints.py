@@ -1059,7 +1059,7 @@ async def create_external_bid(
     external_auction_id: int,
     data: PyExternalBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> PyBid:
+) -> PyBidWithExternal:
     now = datetime.now()
 
     source = await ExternalSource.get_or_none(code=external_source_id)
@@ -1137,8 +1137,27 @@ async def create_external_bid(
     else:
         await EventReactor.react_bid_beaten(bid)
 
-    bid.external = external_bid
-    return PyBid.from_orm(bid)
+    return PyBidWithExternal(
+        id=bid.pk,
+        bidder=PyBidder(
+            id=bidder.pk,
+            last_name=bidder.last_name,
+            first_name=bidder.first_name,
+            created=bidder.created,
+            updated=bidder.updated,
+        ),
+        value=bid.value,
+        is_sniped=bid.is_sniped,
+        is_buyout=bid.is_buyout,
+        next_bid=None,
+        external=PyExternalBid(
+            id=external_bid.pk,
+            source=PyExternalSource.from_orm(source),
+            entity_id=external_bid.entity_id,
+            created=external_bid.created,
+        ),
+        created=bid.created,
+    )
 
 
 @router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG])
@@ -1197,8 +1216,21 @@ async def create_bid(
         is_buyout=is_buyout,
     )
 
-    bid.external = None
-    return PyBid.from_orm(bid)
+    return PyBid(
+        id=bid.pk,
+        bidder=PyBidder(
+            id=bidder.pk,
+            last_name=bidder.last_name,
+            first_name=bidder.first_name,
+            created=bidder.created,
+            updated=bidder.updated,
+        ),
+        value=bid.value,
+        is_sniped=bid.is_sniped,
+        is_buyout=bid.is_buyout,
+        next_bid=None,
+        created=bid.created,
+    )
 
 
 @router.delete(

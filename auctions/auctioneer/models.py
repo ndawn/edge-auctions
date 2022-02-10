@@ -396,6 +396,7 @@ class PyBidWithExternal(PyCreatedRecordedModel):
     value: int
     is_sniped: bool
     is_buyout: bool
+    next_bid: Optional["PyBidWithExternal"]
     external: Optional["PyExternalBid"]
 
     class Config:
