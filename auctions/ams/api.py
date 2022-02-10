@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 from aiohttp import ClientResponse, ClientSession
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
 from auctions.ams.models import Album, Job, User
 from auctions.config import AMS_TOKEN, AMS_URL
@@ -80,8 +80,13 @@ class AmsApiService:
         return Job(**(await AmsApiService._request('GET', f'/jobs/{job_id}', await_job=False)))
 
     @staticmethod
-    async def get_user(user_id: int) -> User:
-        return User.parse_obj(await AmsApiService._request('GET', f'/vk/users/{user_id}', await_job=False))
+    async def get_user(user_id: int) -> Optional[User]:
+        try:
+            return User.parse_obj(await AmsApiService._request('GET', f'/vk/users/{user_id}', await_job=False))
+        except HTTPException as exc:
+            if exc.status_code == HTTP_404_NOT_FOUND:
+                return None
+            raise
 
     @staticmethod
     async def send_comment(
@@ -193,11 +198,11 @@ class AmsApiService:
         return await AmsApiService._request('DELETE', f'/vk/albums/{album_id}')
 
     @staticmethod
-    async def upload_to_album(album_id: int, url: str, description: str) -> Any:
+    async def upload_to_album(album_id: int, url: str, description: str, auction_uuid: str) -> Any:
         return await AmsApiService._request(
             'POST',
             f'/vk/albums/{album_id}/upload',
-            {'url': url, 'description': description},
+            {'url': url, 'description': description, 'auction_uuid': auction_uuid},
         )
 
     @staticmethod

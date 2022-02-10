@@ -89,6 +89,7 @@ class VkEventReactor(BaseEventReactor):
                 album_id=album.album.album_id,
                 url=main_image.image_url,
                 description=auction.item.build_description(),
+                auction_uuid=str(auction.uuid),
             )
 
             await ExternalAuction.create(
@@ -204,20 +205,20 @@ class VkEventReactor(BaseEventReactor):
 
         external_bidder = await bidder.get_external(source)
 
-        try:
-            user = await AmsApiService.get_user(user_id=external_bidder.subject_id)
+        user = await AmsApiService.get_user(user_id=external_bidder.subject_id)
+        if user is not None:
             bidder.first_name = user.first_name
             bidder.last_name = user.last_name
             await bidder.save()
-        except HTTPException as exception:
-            if exception.status_code == HTTP_404_NOT_FOUND:
-                await bid.fetch_related('auction__set__target')
-                external_target = await bid.auction.set.target.get_external(source)
-                external_auction = await bid.auction.get_external(source)
+            return
 
-                return await AmsApiService.send_comment(
-                    group_id=external_target.entity_id,
-                    photo_id=external_auction.entity_id,
-                    reply_to=external_bidder.subject_id,
-                    text=not_subscribed(),
-                )
+        await bid.fetch_related('auction__set__target')
+        external_target = await bid.auction.set.target.get_external(source)
+        external_auction = await bid.auction.get_external(source)
+
+        return await AmsApiService.send_comment(
+            group_id=external_target.entity_id,
+            photo_id=external_auction.entity_id,
+            reply_to=external_bidder.subject_id,
+            text=not_subscribed(),
+        )

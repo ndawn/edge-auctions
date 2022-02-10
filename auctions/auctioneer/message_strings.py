@@ -15,7 +15,7 @@ def winner_message(user_name: str, auction_links: str, overall_price: str) -> st
         f'Привет, {user_name}!\n'
         'Поздравляем с победой в аукционах!\n\n'
         f'Выигранные аукционы:\n{auction_links}\n\n'
-        f'К оплате за лот: {overall_price} рублей\n\n'
+        f'К оплате за лоты: {overall_price} рублей\n\n'
         'Напишите, пожалуйста, нужно ли списывать Плюсы и совершать доставку, или нет. '
         'После этого мы скинем информацию по оплате.'
     )
