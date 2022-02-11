@@ -662,7 +662,7 @@ async def start_auction_set(
     set_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSet:
-    now = datetime.now(ZoneInfo('UTC'))
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_set = await AuctionSet.get_or_none(uuid=set_uuid).select_related('target')
 
@@ -712,7 +712,7 @@ async def close_auction_set(
     set_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyAuctionSetCloseOut:
-    now = datetime.now(ZoneInfo('UTC'))
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_set = await AuctionSet.get_or_none(uuid=set_uuid)
 
@@ -998,7 +998,7 @@ async def close_auction(
 
 
 async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
-    now = datetime.now(ZoneInfo('UTC'))
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
 
     auction_date_due_timestamp = int(auction.date_due.timestamp())
 
@@ -1067,7 +1067,7 @@ async def create_external_bid(
     data: PyExternalBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBidWithExternal:
-    now = datetime.now(ZoneInfo('UTC'))
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
 
     source = await ExternalSource.get_or_none(code=external_source_id)
 
@@ -1183,7 +1183,7 @@ async def create_bid(
     data: PyBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBid:
-    now = datetime.now(ZoneInfo('UTC'))
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
 
     bidder = await Bidder.get_or_none(pk=data.bidder_id)
 
