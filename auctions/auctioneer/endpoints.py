@@ -574,7 +574,7 @@ async def create_auction_set(
 
     auction_set = await AuctionSet.create(
         target=target,
-        date_due=data.date_due,
+        date_due=data.date_due.replace(tzinfo=ZoneInfo(DEFAULT_TIMEZONE)),
         anti_sniper=data.anti_sniper,
     )
 
@@ -1067,7 +1067,7 @@ async def create_external_bid(
     data: PyExternalBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBidWithExternal:
-    now = datetime.now(ZoneInfo('Europe/Moscow'))
+    now = datetime.now()
 
     source = await ExternalSource.get_or_none(code=external_source_id)
 
@@ -1146,8 +1146,8 @@ async def create_external_bid(
     if is_buyout:
         await EventReactor.react_auction_buyout(bid)
     elif is_sniped_:
-        bid.auction.date_due = bid.auction.date_due + timedelta(minutes=bid.auction.set.anti_sniper)
-        await bid.save()
+        bid.auction.date_due += timedelta(minutes=bid.auction.set.anti_sniper)
+        await bid.auction.save()
         await EventReactor.react_bid_sniped(bid)
     else:
         await EventReactor.react_bid_beaten(bid)
@@ -1182,7 +1182,7 @@ async def create_bid(
     data: PyBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBid:
-    now = datetime.now(ZoneInfo(DEFAULT_TIMEZONE))
+    now = datetime.now()
 
     bidder = await Bidder.get_or_none(pk=data.bidder_id)
 
