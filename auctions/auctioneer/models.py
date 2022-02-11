@@ -158,7 +158,7 @@ class Bidder(CreatedUpdatedRecordedModel):
 
 
 class ExternalBidder(CreatedUpdatedRecordedModel):
-    bidder = fields.ForeignKeyField('auctioneer.Bidder', on_delete=fields.CASCADE)
+    bidder = fields.ForeignKeyField('auctioneer.Bidder', related_name='external', on_delete=fields.CASCADE)
     source = fields.ForeignKeyField('auctioneer.ExternalSource', on_delete=fields.RESTRICT)
     subject_id = fields.IntField()
 
