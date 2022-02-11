@@ -1009,7 +1009,12 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
             retry_at=auction_date_due_timestamp,
         )
     else:
-        if not auction.is_active:
+        if auction.started is None:
+            return PyAuctionCloseOut(
+                auction_id=str(auction.uuid),
+                code=AuctionCloseCodeType.NOT_STARTED_YET,
+            )
+        elif not auction.is_active or auction.ended is not None:
             return PyAuctionCloseOut(
                 auction_id=str(auction.uuid),
                 code=AuctionCloseCodeType.ALREADY_CLOSED,
@@ -1145,6 +1150,11 @@ async def create_external_bid(
 
     if is_buyout:
         await EventReactor.react_auction_buyout(bid)
+        bid.auction.ended = now
+        bid.auction.is_active = False
+        await bid.auction.save()
+        await EventReactor.react_auction_closed(bid.auction)
+        await EventReactor.react_auction_winner(bid)
     else:
         if is_sniped_:
             bid.auction.date_due = now + timedelta(minutes=bid.auction.set.anti_sniper)

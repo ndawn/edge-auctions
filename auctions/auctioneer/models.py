@@ -11,8 +11,6 @@ from auctions.utils.abstract_models import (
     CreatedUpdatedRecordedModel,
     PyCreatedRecordedModel,
     PyCreatedUpdatedRecordedModel,
-    PyRelatedMany,
-    PyRelatedOne,
 )
 
 
@@ -20,6 +18,7 @@ class AuctionCloseCodeType(Enum):
     CLOSED = 'closed'
     ALREADY_CLOSED = 'already_closed'
     NOT_CLOSED_YET = 'not_closed_yet'
+    NOT_STARTED_YET = 'not_started_yet'
 
 
 class BidValidationResult(Enum):
