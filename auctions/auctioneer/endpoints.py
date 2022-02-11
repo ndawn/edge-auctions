@@ -1135,7 +1135,7 @@ async def create_external_bid(
 
     bid_value = data.value
 
-    if is_sniped_:
+    if is_buyout:
         bid_value = (
             external_auction.auction.item.price_category
             or external_auction.auction.item.type.price_category
