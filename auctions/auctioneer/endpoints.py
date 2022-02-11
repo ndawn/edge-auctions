@@ -1020,6 +1020,17 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
                 code=AuctionCloseCodeType.ALREADY_CLOSED,
             )
 
+    await perform_auction_close(auction)
+
+    return PyAuctionCloseOut(
+        auction_id=str(auction.uuid),
+        code=AuctionCloseCodeType.CLOSED,
+    )
+
+
+async def perform_auction_close(auction: Auction) -> None:
+    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
+
     auction.ended = now
     auction.is_active = False
     await auction.save()
@@ -1036,11 +1047,6 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
         await last_bid.fetch_related('bidder')
         if not await last_bid.bidder.has_unclosed_auctions(auction.set):
             await EventReactor.react_auction_winner(last_bid)
-
-    return PyAuctionCloseOut(
-        auction_id=str(auction.uuid),
-        code=AuctionCloseCodeType.CLOSED,
-    )
 
 
 @router.delete('/auctions/{auction_uuid}', tags=[AUCTION_TAG])
@@ -1150,11 +1156,9 @@ async def create_external_bid(
 
     if is_buyout:
         await EventReactor.react_auction_buyout(bid)
-        bid.auction.ended = now
-        bid.auction.is_active = False
-        await bid.auction.save()
+        await bid.auction.fetch_related('set')
+        await perform_auction_close(bid.auction)
         await EventReactor.react_auction_closed(bid.auction)
-        await EventReactor.react_auction_winner(bid)
     else:
         if is_sniped_:
             bid.auction.date_due = now + timedelta(minutes=bid.auction.set.anti_sniper)
