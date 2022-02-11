@@ -1151,7 +1151,8 @@ async def create_external_bid(
             await bid.auction.save()
             await EventReactor.react_bid_sniped(bid)
 
-        await EventReactor.react_bid_beaten(bid)
+        if last_bid is not None:
+            await EventReactor.react_bid_beaten(bid)
 
     PyBidWithExternal.update_forward_refs()
     return PyBidWithExternal(
@@ -1177,83 +1178,83 @@ async def create_external_bid(
     )
 
 
-@router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG], status_code=HTTP_201_CREATED)
-async def create_bid(
-    auction_uuid: str,
-    data: PyBidCreateIn,
-    user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> PyBid:
-    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
-
-    bidder = await Bidder.get_or_none(pk=data.bidder_id)
-
-    if bidder is None:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Bidder with provided id not found')
-
-    auction = await Auction.get_or_none(uuid=auction_uuid)
-
-    if auction is None:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Not found')
-
-    bid_validation_result = await validate_bid(data.value, auction=auction)
-
-    if bid_validation_result == BidValidationResult.INVALID_BUYOUT:
-        await EventReactor.react_invalid_buyout(
-            InvalidBid(
-                value=str(data.value),
-                auction=auction,
-            )
-        )
-
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f'Bid is invalid: {bid_validation_result.value}',
-        )
-    elif bid_validation_result in (BidValidationResult.INVALID_BID, BidValidationResult.INVALID_BEATING):
-        await EventReactor.react_invalid_bid(
-            InvalidBid(
-                value=str(data.value),
-                auction=auction,
-            )
-        )
-
-        raise HTTPException(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f'Bid is invalid: {bid_validation_result.value}',
-        )
-
-    is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
-    is_sniped_ = await is_sniped(now, auction=auction)
-
-    last_bid = await auction.get_last_bid()
-
-    bid = await Bid.create(
-        bidder=bidder,
-        auction=auction,
-        value=data.value,
-        is_sniped=is_sniped_,
-        is_buyout=is_buyout,
-    )
-
-    if last_bid is not None:
-        last_bid.next_bid = bid
-        await last_bid.save()
-
-    return PyBid(
-        id=bid.pk,
-        bidder=PyBidder(
-            id=bidder.pk,
-            last_name=bidder.last_name,
-            first_name=bidder.first_name,
-            created=bidder.created,
-            updated=bidder.updated,
-        ),
-        value=bid.value,
-        is_sniped=bid.is_sniped,
-        is_buyout=bid.is_buyout,
-        next_bid=None,
-        created=bid.created,
-    )
+# @router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG], status_code=HTTP_201_CREATED)
+# async def create_bid(
+#     auction_uuid: str,
+#     data: PyBidCreateIn,
+#     user: PyUser = Depends(get_current_active_admin),  # noqa
+# ) -> PyBid:
+#     now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
+#
+#     bidder = await Bidder.get_or_none(pk=data.bidder_id)
+#
+#     if bidder is None:
+#         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Bidder with provided id not found')
+#
+#     auction = await Auction.get_or_none(uuid=auction_uuid)
+#
+#     if auction is None:
+#         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Not found')
+#
+#     bid_validation_result = await validate_bid(data.value, auction=auction)
+#
+#     if bid_validation_result == BidValidationResult.INVALID_BUYOUT:
+#         await EventReactor.react_invalid_buyout(
+#             InvalidBid(
+#                 value=str(data.value),
+#                 auction=auction,
+#             )
+#         )
+#
+#         raise HTTPException(
+#             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+#             detail=f'Bid is invalid: {bid_validation_result.value}',
+#         )
+#     elif bid_validation_result in (BidValidationResult.INVALID_BID, BidValidationResult.INVALID_BEATING):
+#         await EventReactor.react_invalid_bid(
+#             InvalidBid(
+#                 value=str(data.value),
+#                 auction=auction,
+#             )
+#         )
+#
+#         raise HTTPException(
+#             status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+#             detail=f'Bid is invalid: {bid_validation_result.value}',
+#         )
+#
+#     is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
+#     is_sniped_ = await is_sniped(now, auction=auction)
+#
+#     last_bid = await auction.get_last_bid()
+#
+#     bid = await Bid.create(
+#         bidder=bidder,
+#         auction=auction,
+#         value=data.value,
+#         is_sniped=is_sniped_,
+#         is_buyout=is_buyout,
+#     )
+#
+#     if last_bid is not None:
+#         last_bid.next_bid = bid
+#         await last_bid.save()
+#
+#     return PyBid(
+#         id=bid.pk,
+#         bidder=PyBidder(
+#             id=bidder.pk,
+#             last_name=bidder.last_name,
+#             first_name=bidder.first_name,
+#             created=bidder.created,
+#             updated=bidder.updated,
+#         ),
+#         value=bid.value,
+#         is_sniped=bid.is_sniped,
+#         is_buyout=bid.is_buyout,
+#         next_bid=None,
+#         created=bid.created,
+#     )
 
 
 @router.delete(
