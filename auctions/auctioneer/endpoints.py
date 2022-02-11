@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from uuid import uuid4
 from zoneinfo import ZoneInfo
@@ -1015,15 +1015,21 @@ async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
                 code=AuctionCloseCodeType.ALREADY_CLOSED,
             )
 
+    auction.ended = now
     auction.is_active = False
     await auction.save()
+
+    if not await auction.set.auctions.filter(ended=None).exists():
+        auction.set.ended = now
+        await auction.set.save()
+
     await EventReactor.react_auction_closed(auction)
 
     last_bid = await auction.get_last_bid()
 
     if last_bid is not None:
         await last_bid.fetch_related('bidder')
-        if not last_bid.bidder.has_unclosed_auctions(auction.set):
+        if not await last_bid.bidder.has_unclosed_auctions(auction.set):
             await EventReactor.react_auction_winner(last_bid)
 
     return PyAuctionCloseOut(
@@ -1140,6 +1146,8 @@ async def create_external_bid(
     if is_buyout:
         await EventReactor.react_auction_buyout(bid)
     elif is_sniped_:
+        bid.auction.date_due = bid.auction.date_due + timedelta(minutes=bid.auction.set.anti_sniper)
+        await bid.save()
         await EventReactor.react_bid_sniped(bid)
     else:
         await EventReactor.react_bid_beaten(bid)

@@ -15,7 +15,7 @@ async def validate_bid(bid_value: int, auction: Auction) -> BidValidationResult:
     if last_bid is None:
         return BidValidationResult.VALID_BID
 
-    if bid_value == 0:
+    if bid_value == -1:
         if not await is_valid_buyout(
             previous_bid_value=last_bid.value,
             auction=auction,
