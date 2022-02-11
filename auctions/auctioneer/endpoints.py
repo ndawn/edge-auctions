@@ -574,7 +574,7 @@ async def create_auction_set(
 
     auction_set = await AuctionSet.create(
         target=target,
-        date_due=data.date_due,
+        date_due=data.date_due.astimezone(ZoneInfo(DEFAULT_TIMEZONE)),
         anti_sniper=data.anti_sniper,
     )
 
@@ -1145,11 +1145,12 @@ async def create_external_bid(
 
     if is_buyout:
         await EventReactor.react_auction_buyout(bid)
-    elif is_sniped_:
-        bid.auction.date_due += timedelta(minutes=bid.auction.set.anti_sniper)
-        await bid.auction.save()
-        await EventReactor.react_bid_sniped(bid)
     else:
+        if is_sniped_:
+            bid.auction.date_due += timedelta(minutes=bid.auction.set.anti_sniper)
+            await bid.auction.save()
+            await EventReactor.react_bid_sniped(bid)
+
         await EventReactor.react_bid_beaten(bid)
 
     PyBidWithExternal.update_forward_refs()

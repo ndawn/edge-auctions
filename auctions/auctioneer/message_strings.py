@@ -3,7 +3,7 @@ def bid_beaten() -> str:
 
 
 def bid_sniped(due: str) -> str:
-    return f'Ставка бита!\nОкончание аукциона в {due}'
+    return f'🎯 Окончание аукциона в {due}'
 
 
 def invalid_bid() -> str:

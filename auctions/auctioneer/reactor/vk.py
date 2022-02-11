@@ -37,13 +37,8 @@ class VkEventReactor(BaseEventReactor):
 
     @staticmethod
     async def _bid_answer(bid: Bid, answer_string: str):
-        previous_bid = await bid.get_previous()
-
-        if previous_bid is None:
-            return
-
         source = await VkEventReactor.get_source()
-        external_bid = await previous_bid.get_external(source)
+        external_bid = await bid.get_external(source)
 
         if external_bid is None:
             return
