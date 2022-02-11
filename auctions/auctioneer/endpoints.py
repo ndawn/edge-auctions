@@ -1176,7 +1176,7 @@ async def create_external_bid(
     )
 
 
-@router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG])
+@router.post('/auctions/{auction_uuid}/bids', tags=[BID_TAG], status_code=HTTP_201_CREATED)
 async def create_bid(
     auction_uuid: str,
     data: PyBidCreateIn,

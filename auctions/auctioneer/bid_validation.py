@@ -4,25 +4,25 @@ from auctions.auctioneer.models import Auction, Bid, BidValidationResult
 
 
 async def validate_bid(bid_value: int, auction: Auction) -> BidValidationResult:
+    last_bid = await auction.get_last_bid()
+
+    if bid_value == -1:
+        if not await is_valid_buyout(
+            previous_bid_value=last_bid.value if last_bid is not None else 0,
+            auction=auction,
+        ):
+            return BidValidationResult.INVALID_BUYOUT
+
+        return BidValidationResult.VALID_BUYOUT
+
     if not await is_valid_bid(
         bid_value=bid_value,
         auction=auction,
     ):
         return BidValidationResult.INVALID_BID
 
-    last_bid = await auction.get_last_bid()
-
     if last_bid is None:
         return BidValidationResult.VALID_BID
-
-    if bid_value == -1:
-        if not await is_valid_buyout(
-            previous_bid_value=last_bid.value,
-            auction=auction,
-        ):
-            return BidValidationResult.INVALID_BUYOUT
-
-        return BidValidationResult.VALID_BUYOUT
 
     if not await is_valid_beating(
         bid_value=bid_value,
