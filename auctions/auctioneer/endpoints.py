@@ -1166,7 +1166,6 @@ async def create_external_bid(
         await EventReactor.react_auction_buyout(bid)
         await bid.auction.fetch_related('set')
         await perform_auction_close(bid.auction)
-        await EventReactor.react_auction_closed(bid.auction)
     else:
         if is_sniped_:
             bid.auction.date_due = now + timedelta(minutes=bid.auction.set.anti_sniper)
