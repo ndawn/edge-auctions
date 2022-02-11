@@ -574,7 +574,7 @@ async def create_auction_set(
 
     auction_set = await AuctionSet.create(
         target=target,
-        date_due=data.date_due.replace(tzinfo=ZoneInfo(DEFAULT_TIMEZONE)),
+        date_due=data.date_due,
         anti_sniper=data.anti_sniper,
     )
 
