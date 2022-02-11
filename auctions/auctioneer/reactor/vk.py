@@ -1,4 +1,5 @@
 import logging
+from zoneinfo import ZoneInfo
 
 from auctions.ams.api import AmsApiService
 from auctions.auctioneer.message_strings import (
@@ -22,7 +23,7 @@ from auctions.auctioneer.models import (
     InvalidBid,
 )
 from auctions.auctioneer.reactor.base import BaseEventReactor
-from auctions.config import DEBUG
+from auctions.config import DEBUG, DEFAULT_TIMEZONE
 
 
 logger = logging.getLogger(__name__)
@@ -36,17 +37,22 @@ class VkEventReactor(BaseEventReactor):
         return await ExternalSource.get(code=VkEventReactor.SOURCE_ID)
 
     @staticmethod
-    async def _bid_answer(bid: Bid, answer_string: str):
+    async def _bid_answer(bid: Bid, answer_string: str, previous: bool = True):
+        bid_ = await bid.get_previous() if previous else bid
+
+        if bid_ is None:
+            return
+
         source = await VkEventReactor.get_source()
-        external_bid = await bid.get_external(source)
+        external_bid = await bid_.get_external(source)
 
         if external_bid is None:
             return
 
-        await bid.fetch_related('auction__set__target')
+        await bid_.fetch_related('auction__set__target')
 
-        external_target = await bid.auction.set.target.get_external(source)
-        external_auction = await bid.auction.get_external(source)
+        external_target = await bid_.auction.set.target.get_external(source)
+        external_auction = await bid_.auction.get_external(source)
 
         await AmsApiService.send_comment(
             group_id=external_target.entity_id,
@@ -205,8 +211,8 @@ class VkEventReactor(BaseEventReactor):
     async def react_bid_sniped(bid: Bid):
         logger.info(f'Reacting on bid sniped: external_source={VkEventReactor.SOURCE_ID}, bid_id={bid.pk}')
         await bid.fetch_related('auction')
-        date_due_string = bid.auction.date_due.strftime('%H:%M')
-        await VkEventReactor._bid_answer(bid, bid_sniped(date_due_string))
+        date_due_string = bid.auction.date_due.astimezone(ZoneInfo(DEFAULT_TIMEZONE)).strftime('%H:%M')
+        await VkEventReactor._bid_answer(bid, bid_sniped(date_due_string), previous=False)
 
     @staticmethod
     async def react_invalid_bid(bid: InvalidBid):
