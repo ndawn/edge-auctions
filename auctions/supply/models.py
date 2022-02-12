@@ -27,7 +27,12 @@ class SupplyItem(CreatedUpdatedRecordedModel):
     session = fields.ForeignKeyField('supply.SupplySession', related_name='items', on_delete=fields.CASCADE)
     name = fields.CharField(max_length=255, null=True)
     description = fields.TextField(default='')
-    wrap_to = fields.ForeignKeyField('comics.ItemDescriptionTemplate', related_name=False, on_delete=fields.SET_NULL)
+    wrap_to = fields.ForeignKeyField(
+        'comics.ItemDescriptionTemplate',
+        related_name=False,
+        on_delete=fields.SET_NULL,
+        null=True,
+    )
     source_description = fields.TextField(null=True)
     publisher = fields.CharField(max_length=64, null=True)
     release_date = fields.DatetimeField(null=True)
