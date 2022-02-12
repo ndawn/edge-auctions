@@ -36,11 +36,7 @@ class ItemType(CreatedUpdatedRecordedModel):
 class Item(CreatedUpdatedRecordedModel):
     uuid = fields.UUIDField(pk=True)
     name = fields.CharField(max_length=255)
-    description = fields.ForeignKeyField(
-        'comics.ItemDescriptionTemplate',
-        related_name=False,
-        on_delete=fields.RESTRICT,
-    )
+    description = fields.TextField()
     wrap_to = fields.ForeignKeyField(
         'comics.ItemDescriptionTemplate',
         related_name=False,
