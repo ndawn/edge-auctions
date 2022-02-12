@@ -423,7 +423,7 @@ async def list_auction_sets(
                             PyPriceCategory.from_orm(auction.item.price_category)
                             if auction.item.price_category is not None else None
                         ),
-                        description=build_description(auction.item),
+                        description=await build_description(auction.item),
                         images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                         upca=auction.item.upca,
                         upc5=auction.item.upc5,
@@ -539,7 +539,7 @@ async def get_auction_set(
                         PyPriceCategory.from_orm(auction.item.price_category)
                         if auction.item.price_category is not None else None
                     ),
-                    description=build_description(auction.item),
+                    description=await build_description(auction.item),
                     images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                     upca=auction.item.upca,
                     upc5=auction.item.upc5,
@@ -647,7 +647,7 @@ async def create_auction_set(
                                 PyPriceCategory.from_orm(item_price_category)
                                 if auction.item.price_category is not None else None
                             ),
-                            description=build_description(auction.item),
+                            description=await build_description(auction.item),
                             images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                             upca=auction.item.upca,
                             upc5=auction.item.upc5,
@@ -833,7 +833,7 @@ async def get_auction(
             price_category=PyPriceCategory.from_orm(auction.item.price_category),
             upca=auction.item.upca,
             upc5=auction.item.upc5,
-            description=build_description(auction.item),
+            description=await build_description(auction.item),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await auction.item.images
@@ -986,7 +986,7 @@ async def reroll_auction(
                 updated=item_type.updated,
             ),
             price_category=PyPriceCategory.from_orm(price_category),
-            description=build_description(auction.item),
+            description=await build_description(auction.item),
             upca=auction.item.upca,
             upc5=auction.item.upc5,
             images=[

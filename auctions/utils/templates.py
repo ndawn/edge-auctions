@@ -1,6 +1,8 @@
 import re
+from typing import Union
 
-from auctions.comics.models import Item, ItemDescriptionTemplate
+from auctions.comics.models import Item
+from auctions.supply.models import SupplyItem
 
 
 TEMPLATE_TAG_MAP = [
@@ -17,7 +19,7 @@ TEMPLATE_TAG_MAP = [
 WRAP_TAG_NAME = 'include'
 
 
-def build_template(text: str, item: Item) -> str:
+def build_template(text: str, item: Union[Item, SupplyItem]) -> str:
     output = ''
 
     for tag, get_tag in TEMPLATE_TAG_MAP:
@@ -27,8 +29,9 @@ def build_template(text: str, item: Item) -> str:
     return output
 
 
-def build_description(item: Item) -> str:
+async def build_description(item: Union[Item, SupplyItem]) -> str:
     description = item.description
+    await item.fetch_related('wrap_to')
     if item.wrap_to is not None:
         description = re.sub(r'{ ?%s ?}' % WRAP_TAG_NAME, description, item.wrap_to.text)
 

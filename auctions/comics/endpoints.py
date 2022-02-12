@@ -27,6 +27,7 @@ from auctions.comics.models import (
 )
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
+from auctions.utils.templates import build_description
 
 
 router = APIRouter(redirect_slashes=False)
@@ -259,6 +260,7 @@ async def list_items(
                 updated=item.type.updated,
             ),
             price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
+            description=await build_description(item),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
@@ -291,6 +293,7 @@ async def get_item(
         name=item.name,
         type=PyItemType.from_orm(item.type),
         price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
+        description=await build_description(item),
         images=[
             PyImageBase.from_orm(image)
             for image in await item.images
@@ -312,6 +315,7 @@ async def create_item_from_upc(
         name=item.name,
         type=PyItemType.from_orm(item.type),
         price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
+        description=await build_description(item),
         images=[
             PyImageBase.from_orm(image)
             for image in await item.images
@@ -372,7 +376,7 @@ async def get_price_count(item_type: ItemType, price_categories: list[PriceCateg
             lambda x: x.count > 0,
             [
                 PyItemPriceMetaData(
-                    price_category=price_category,
+                    price_category=PyPriceCategory.from_orm(price_category),
                     count=await Item.filter(
                         type=item_type,
                         price_category=price_category,

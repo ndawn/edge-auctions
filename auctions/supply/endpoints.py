@@ -291,7 +291,7 @@ async def apply_session(
                 PyPriceCategory.from_orm(await item.price_category)
                 if await item.price_category is not None else None
             ),
-            description=build_description(item),
+            description=await build_description(item),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
