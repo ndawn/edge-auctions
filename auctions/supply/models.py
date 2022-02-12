@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, UUID4
 from tortoise import fields
 
-from auctions.comics.models import PyItemType, PyPriceCategory
+from auctions.comics.models import PyItemDescriptionTemplate, PyItemType, PyPriceCategory
 from auctions.utils.abstract_models import CreatedUpdatedRecordedModel, PyCreatedUpdatedRecordedModel
 
 
@@ -27,6 +27,7 @@ class SupplyItem(CreatedUpdatedRecordedModel):
     session = fields.ForeignKeyField('supply.SupplySession', related_name='items', on_delete=fields.CASCADE)
     name = fields.CharField(max_length=255, null=True)
     description = fields.TextField(default='')
+    wrap_to = fields.ForeignKeyField('comics.ItemDescriptionTemplate', related_name=False, on_delete=fields.SET_NULL)
     source_description = fields.TextField(null=True)
     publisher = fields.CharField(max_length=64, null=True)
     release_date = fields.DatetimeField(null=True)

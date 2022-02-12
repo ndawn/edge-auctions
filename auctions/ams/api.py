@@ -82,7 +82,7 @@ class AmsApiService:
     @staticmethod
     async def get_user(user_id: int) -> Optional[User]:
         try:
-            return User.parse_obj(await AmsApiService._request('GET', f'/vk/users/{user_id}', await_job=False))
+            return User.parse_obj(await AmsApiService._request('GET', f'/vk/users/{user_id}'))
         except HTTPException as exc:
             if exc.status_code == HTTP_404_NOT_FOUND:
                 return None

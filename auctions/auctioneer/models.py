@@ -341,6 +341,10 @@ class PyAuctionSetOut(PyAuctionSet):
     external: list[PyExternalAuctionSetOut]
 
 
+class PyAuctionSetOutWithTotalEarned(PyAuctionSetOut):
+    total_earned: int
+
+
 class PyAuctionRerollIn(BaseModel):
     item_type_id: int
     price_category_id: int

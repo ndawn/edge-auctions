@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends
 from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRouter
-from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT, HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 
 from auctions.accounts.models import PyUser
 from auctions.auctioneer.bid_validation import is_sniped, validate_bid
@@ -36,10 +36,9 @@ from auctions.auctioneer.models import (
     PyAuctionSetCreate,
     PyAuctionSetCreateOut,
     PyAuctionSetOut,
+    PyAuctionSetOutWithTotalEarned,
     PyAuctionTarget,
     PyAuctionTargetIn,
-    PyBid,
-    PyBidCreateIn,
     PyBidWithExternal,
     PyBidder,
     PyExternalAuctionOut,
@@ -56,6 +55,7 @@ from auctions.comics.models import Item, PyImageBase, PyItemType, PyItemWithImag
 from auctions.config import AUCTION_CLOSE_LIMIT, DEFAULT_TIMEZONE
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
+from auctions.utils.templates import build_description
 
 
 router = APIRouter(redirect_slashes=False)
@@ -423,6 +423,7 @@ async def list_auction_sets(
                             PyPriceCategory.from_orm(auction.item.price_category)
                             if auction.item.price_category is not None else None
                         ),
+                        description=build_description(auction.item),
                         images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                         upca=auction.item.upca,
                         upc5=auction.item.upc5,
@@ -464,7 +465,7 @@ async def list_auction_sets(
 async def get_auction_set(
     set_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> PyAuctionSetOut:
+) -> PyAuctionSetOutWithTotalEarned:
     auction_set = await AuctionSet.get_or_none(pk=set_uuid).select_related('target')
 
     if auction_set is None:
@@ -473,7 +474,24 @@ async def get_auction_set(
             detail='Not found',
         )
 
-    return PyAuctionSetOut(
+    auctions = await auction_set.auctions.filter().select_related(
+        'item__price_category',
+        'item__type__price_category',
+        'item__wrap_to',
+    )
+
+    async def _get_last_bid_value(auction_: Auction) -> int:
+        bid = await auction_.bids.filter(next_bid=None).get_or_none()
+        if bid is None:
+            return 0
+        return bid.value
+
+    total_earned = 0
+
+    for auction in auctions:
+        total_earned += await _get_last_bid_value(auction)
+
+    return PyAuctionSetOutWithTotalEarned(
         uuid=auction_set.uuid,
         target=PyAuctionTarget(
             uuid=auction_set.target.pk,
@@ -521,6 +539,7 @@ async def get_auction_set(
                         PyPriceCategory.from_orm(auction.item.price_category)
                         if auction.item.price_category is not None else None
                     ),
+                    description=build_description(auction.item),
                     images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                     upca=auction.item.upca,
                     upc5=auction.item.upc5,
@@ -547,11 +566,9 @@ async def get_auction_set(
                 created=auction.created,
                 updated=auction.updated,
             )
-            for auction in await auction_set.auctions.filter().select_related(
-                'item__price_category',
-                'item__type__price_category',
-            )
+            for auction in auctions
         ],
+        total_earned=total_earned,
         created=auction_set.created,
         updated=auction_set.updated,
     )
@@ -589,7 +606,7 @@ async def create_auction_set(
                 auction__isnull=True,
                 type_id=category['item_type_id'],
                 price_category_id=price['price_category_id'],
-            ).limit(price['quantity']).select_related('type__price_category', 'price_category')
+            ).limit(price['quantity']).select_related('type__price_category', 'price_category', 'wrap_to')
             del price['quantity']
 
             for item in price_items:
@@ -630,6 +647,7 @@ async def create_auction_set(
                                 PyPriceCategory.from_orm(item_price_category)
                                 if auction.item.price_category is not None else None
                             ),
+                            description=build_description(auction.item),
                             images=[PyImageBase.from_orm(image) for image in await auction.item.images],
                             upca=auction.item.upca,
                             upc5=auction.item.upc5,
@@ -786,6 +804,7 @@ async def get_auction(
         'set__target',
         'item__price_category',
         'item__type__price_category',
+        'item__wrap_to',
     )
 
     if auction is None:
@@ -814,6 +833,7 @@ async def get_auction(
             price_category=PyPriceCategory.from_orm(auction.item.price_category),
             upca=auction.item.upca,
             upc5=auction.item.upc5,
+            description=build_description(auction.item),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await auction.item.images
@@ -921,7 +941,7 @@ async def reroll_auction(
         auction__isnull=True,
         type=data.item_type_id,
         price_category_id=data.price_category_id,
-    )
+    ).select_related('wrap_to')
 
     try:
         item = random.choice(item_candidates)
@@ -966,6 +986,7 @@ async def reroll_auction(
                 updated=item_type.updated,
             ),
             price_category=PyPriceCategory.from_orm(price_category),
+            description=build_description(auction.item),
             upca=auction.item.upca,
             upc5=auction.item.upc5,
             images=[

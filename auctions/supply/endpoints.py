@@ -11,7 +11,6 @@ from auctions.comics.models import (
     Image,
     Item,
     ItemType,
-    PriceCategory,
     PyImageBase,
     PyItemType,
     PyItemWithImages,
@@ -21,18 +20,17 @@ from auctions.depends import get_current_active_admin
 from auctions.supply.images import create_item_from_image, delete_image_from_s3
 from auctions.supply.models import (
     PySupplyImage,
-    PySupplyItem,
     PySupplyItemUpdateIn,
     PySupplyItemWithImages,
     PySupplySessionWithItems,
     PyJoinItemsIn,
     SupplyImage,
     SupplyItem,
-    SupplyItemParseStatus,
     SupplySession,
 )
 from auctions.supply.parse import parse_item_data
 from auctions.utils.abstract_models import DeleteResponse
+from auctions.utils.templates import build_description
 
 
 router = APIRouter(redirect_slashes=False)
@@ -260,6 +258,8 @@ async def apply_session(
         item = await Item.create(
             uuid=uuid.uuid4(),
             name=item_.name,
+            description=item_.description,
+            wrap_to_id=item_.wrap_to_id,
             type=session.item_type,
             upca=item_.upca,
             upc5=item_.upc5,
@@ -291,6 +291,7 @@ async def apply_session(
                 PyPriceCategory.from_orm(await item.price_category)
                 if await item.price_category is not None else None
             ),
+            description=build_description(item),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images

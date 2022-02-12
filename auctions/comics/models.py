@@ -1,21 +1,9 @@
-import re
 from typing import Optional
 
 from pydantic import BaseModel, UUID4
 from tortoise import fields
 
 from auctions.utils.abstract_models import CreatedUpdatedRecordedModel, PyCreatedUpdatedRecordedModel
-
-
-TEMPLATE_TAG_MAP = [
-    ('name', lambda item: item.name),
-    ('type', lambda item: item.type.name),
-    ('buy_now_price', lambda item: (item.price_category or item.type.price_category).buy_now_price),
-    ('buy_now_expires', lambda item: (item.price_category or item.type.price_category).buy_now_expires),
-    ('bid_start_price', lambda item: (item.price_category or item.type.price_category).bid_start_price),
-    ('bid_min_step', lambda item: (item.price_category or item.type.price_category).bid_min_step),
-    ('bid_multiple_of', lambda item: (item.price_category or item.type.price_category).bid_multiple_of),
-]
 
 
 class PriceCategory(CreatedUpdatedRecordedModel):
@@ -48,7 +36,17 @@ class ItemType(CreatedUpdatedRecordedModel):
 class Item(CreatedUpdatedRecordedModel):
     uuid = fields.UUIDField(pk=True)
     name = fields.CharField(max_length=255)
-    description = fields.TextField(default='')
+    description = fields.ForeignKeyField(
+        'comics.ItemDescriptionTemplate',
+        related_name=False,
+        on_delete=fields.RESTRICT,
+    )
+    wrap_to = fields.ForeignKeyField(
+        'comics.ItemDescriptionTemplate',
+        related_name=False,
+        on_delete=fields.SET_NULL,
+        null=True,
+    )
     type = fields.ForeignKeyField('comics.ItemType', related_name='items', on_delete=fields.RESTRICT)
     upca = fields.CharField(max_length=12, null=True)
     upc5 = fields.CharField(max_length=5, null=True)
@@ -61,15 +59,6 @@ class Item(CreatedUpdatedRecordedModel):
 
     images: fields.ReverseRelation["Image"]
     auction: fields.OneToOneNullableRelation
-
-    def build_description(self) -> str:
-        description = self.description
-
-        for tag, get_tag in TEMPLATE_TAG_MAP:
-            if re.search(r'{ ?%s ?}' % tag, description) is not None:
-                description = re.sub(r'{ ?%s ?}' % tag, get_tag(self), description)
-
-        return description
 
 
 class ItemDescriptionTemplate(CreatedUpdatedRecordedModel):
@@ -148,24 +137,35 @@ class PyItemTypeIn(BaseModel):
     price_category_id: Optional[int]
 
 
-class PyItemBase(PyCreatedUpdatedRecordedModel):
-    uuid: UUID4
-    name: str
-    type: PyItemType
-    price_category: Optional[PyPriceCategory]
-    upca: Optional[str]
-    upc5: Optional[str]
-
-    class Config:
-        orm_mode = True
-
-
 class PyImageBase(PyCreatedUpdatedRecordedModel):
     uuid: UUID4
     extension: str
     image_url: str
     thumb_url: str
     is_main: bool
+
+    class Config:
+        orm_mode = True
+
+
+class PyItemDescriptionTemplate(PyCreatedUpdatedRecordedModel):
+    id: Optional[int]
+    alias: str
+    text: str
+
+    class Config:
+        orm_mode = True
+
+
+class PyItemBase(PyCreatedUpdatedRecordedModel):
+    uuid: UUID4
+    name: str
+    type: PyItemType
+    price_category: Optional[PyPriceCategory]
+    description: str
+    wrap_to: Optional[PyItemDescriptionTemplate]
+    upca: Optional[str]
+    upc5: Optional[str]
 
     class Config:
         orm_mode = True
@@ -180,15 +180,6 @@ class PyImageWithItem(PyImageBase):
 
 class PyItemWithImages(PyItemBase):
     images: list[PyImageBase]
-
-    class Config:
-        orm_mode = True
-
-
-class PyItemDescriptionTemplate(PyCreatedUpdatedRecordedModel):
-    id: Optional[int]
-    alias: str
-    text: str
 
     class Config:
         orm_mode = True
