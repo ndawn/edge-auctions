@@ -12,6 +12,7 @@ from auctions.comics.models import (
     Item,
     ItemType,
     PyImageBase,
+    PyItemDescriptionTemplate,
     PyItemType,
     PyItemWithImages,
     PyPriceCategory,
@@ -60,7 +61,10 @@ async def list_sessions(
                     uuid=item.uuid,
                     name=item.name,
                     description=item.description,
-                    wrap_to=await item.wrap_to,
+                    wrap_to=(
+                        PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+                        if await item.wrap_to is not None else None
+                    ),
                     publisher=item.publisher,
                     release_date=item.release_date,
                     upca=item.upca,
@@ -112,7 +116,10 @@ async def get_session(
                 uuid=item.uuid,
                 name=item.name,
                 description=item.description,
-                wrap_to=await item.wrap_to,
+                wrap_to=(
+                    PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+                    if await item.wrap_to is not None else None
+                ),
                 publisher=item.publisher,
                 release_date=item.release_date,
                 upca=item.upca,
@@ -168,7 +175,10 @@ async def create_session(
                 uuid=item.uuid,
                 name=item.name,
                 description=item.description,
-                wrap_to=await item.wrap_to,
+                wrap_to=(
+                    PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+                    if await item.wrap_to is not None else None
+                ),
                 publisher=item.publisher,
                 release_date=item.release_date,
                 upca=item.upca,
@@ -295,7 +305,10 @@ async def apply_session(
                 if await item.price_category is not None else None
             ),
             description=item.description,
-            wrap_to=await item.wrap_to,
+            wrap_to=(
+                PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+                if await item.wrap_to is not None else None
+            ),
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
@@ -366,7 +379,10 @@ async def create_item(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
-        wrap_to=await item.wrap_to,
+        wrap_to=(
+            PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+            if await item.wrap_to is not None else None
+        ),
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -412,7 +428,10 @@ async def update_item(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
-        wrap_to=await item.wrap_to,
+        wrap_to=(
+            PyItemDescriptionTemplate.from_orm(await item.wrap_to)
+            if await item.wrap_to is not None else None
+        ),
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -456,7 +475,10 @@ async def parse_item_data_from_upc(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
-        wrap_to=item.wrap_to,
+        wrap_to=(
+            PyItemDescriptionTemplate.from_orm(item.wrap_to)
+            if item.wrap_to is not None else None
+        ),
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -570,7 +592,10 @@ async def join_items(
         uuid=item_data_of.uuid,
         name=item_data_of.name,
         description=item_data_of.description,
-        wrap_to=item_data_of.wrap_to,
+        wrap_to=(
+            PyItemDescriptionTemplate.from_orm(item_data_of.wrap_to)
+            if item_data_of.wrap_to is not None else None
+        ),
         publisher=item_data_of.publisher,
         release_date=item_data_of.release_date,
         upca=item_data_of.upca,

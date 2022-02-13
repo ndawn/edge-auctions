@@ -261,7 +261,7 @@ async def list_items(
             ),
             price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
             description=item.description,
-            wrap_to=item.wrap_to,
+            wrap_to=PyItemDescriptionTemplate.from_orm(item.wrap_to) if item.wrap_to is not None else None,
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
@@ -296,7 +296,7 @@ async def get_item(
         type=PyItemType.from_orm(item.type),
         price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
         description=item.description,
-        wrap_to=item.wrap_to,
+        wrap_to=PyItemDescriptionTemplate.from_orm(item.wrap_to) if item.wrap_to is not None else None,
         images=[
             PyImageBase.from_orm(image)
             for image in await item.images
