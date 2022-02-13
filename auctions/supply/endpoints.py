@@ -23,6 +23,9 @@ from auctions.supply.models import (
     PySupplyImage,
     PySupplyItemUpdateIn,
     PySupplyItemWithImages,
+    PySupplySession,
+    PySupplySessionCreateIn,
+    PySupplySessionUploadStatus,
     PySupplySessionWithItems,
     PyJoinItemsIn,
     SupplyImage,
@@ -39,6 +42,9 @@ router = APIRouter(redirect_slashes=False)
 SESSION_TAG = 'Supply Sessions'
 ITEM_TAG = 'Supply Items'
 IMAGE_TAG = 'Supply Images'
+
+
+UPLOAD_STATUSES: dict[str, PySupplySessionUploadStatus] = {}
 
 
 @router.get('/sessions', tags=[SESSION_TAG])
@@ -147,11 +153,10 @@ async def get_session(
 
 @router.post('/sessions', tags=[SESSION_TAG])
 async def create_session(
-    item_type_id: int = Form(...),
-    files: list[UploadFile] = File(...),
+    data: PySupplySessionCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> PySupplySessionWithItems:
-    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category')
+) -> PySupplySession:
+    item_type = await ItemType.get_or_none(pk=data.item_type_id).select_related('price_category')
 
     if item_type is None:
         raise HTTPException(
@@ -161,47 +166,51 @@ async def create_session(
 
     session = await SupplySession.create(uuid=uuid.uuid4(), item_type=item_type)
 
-    items = []
-
-    for file in files:
-        items.append(await create_item_from_image(file, session))
-
-    return PySupplySessionWithItems(
+    return PySupplySession(
         uuid=session.uuid,
         item_type=PyItemType.from_orm(session.item_type),
-        items=[
-            PySupplyItemWithImages(
-                uuid=item.uuid,
-                name=item.name,
-                description=item.description,
-                wrap_to=(
-                    PyItemDescriptionTemplate.from_orm(await item.wrap_to)
-                    if await item.wrap_to is not None else None
-                ),
-                publisher=item.publisher,
-                release_date=item.release_date,
-                upca=item.upca,
-                upc5=item.upc5,
-                cover_price=item.cover_price,
-                condition_prices=item.condition_prices,
-                price_category=(
-                    PyPriceCategory.from_orm(await item.price_category)
-                    if await item.price_category is not None else None
-                ),
-                related_links=item.related_links,
-                parse_status=item.parse_status,
-                images=[
-                    PySupplyImage.from_orm(image)
-                    for image in await item.images
-                ],
-                created=item.created,
-                updated=item.updated,
-            )
-            for item in items
-        ],
         created=session.created,
         updated=session.updated,
     )
+
+
+@router.post('/sessions/{session_uuid}/upload', tags=[SESSION_TAG])
+async def upload_files_to_session(
+    session_uuid: str,
+    files: list[UploadFile] = File(...),
+) -> PySupplySessionUploadStatus:
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+
+    if session is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    items = []
+    file_count = len(files)
+
+    for i, file in enumerate(files, start=1):
+        items.append(await create_item_from_image(file, session))
+        UPLOAD_STATUSES[session.uuid] = PySupplySessionUploadStatus(total=file_count, uploaded=i)
+
+    return UPLOAD_STATUSES.pop(session.uuid)
+
+
+@router.get('/sessions/{session_uuid}/upload_status', tags=[SESSION_TAG])
+async def get_session_upload_status(
+    session_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PySupplySessionUploadStatus:
+    upload_status = UPLOAD_STATUSES.get(session_uuid)
+
+    if upload_status is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    return upload_status
 
 
 @router.put('/sessions/{session_uuid}', tags=[SESSION_TAG])

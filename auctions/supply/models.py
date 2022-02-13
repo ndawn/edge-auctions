@@ -118,6 +118,15 @@ class PySupplySessionWithItems(PySupplySession):
     items: list[PySupplyItemWithImages]
 
 
+class PySupplySessionCreateIn(BaseModel):
+    item_type_id: int
+
+
+class PySupplySessionUploadStatus(BaseModel):
+    total: int
+    uploaded: int
+
+
 class PySupplyItemUpdateIn(BaseModel):
     name: Optional[str]
     upca: Optional[str]
