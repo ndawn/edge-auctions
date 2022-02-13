@@ -6,7 +6,7 @@ from typing import Any, Optional
 from urllib.parse import urlencode
 
 import aiohttp
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag  # type: ignore
 from fastapi.exceptions import HTTPException
 from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -39,19 +39,19 @@ async def parse_item_data(item: SupplyItem) -> SupplyItem:
         )
 
     async with aiohttp.ClientSession() as session:
-        # try:
+        try:
             parsed_data = await _parse_item_data(item.upca + item.upc5, session)
-        # except:  # noqa
-        #     item.parse_status = SupplyItemParseStatus.FAILED
-        #     await item.save()
-        #     return item
+        except:  # noqa
+            item.parse_status = SupplyItemParseStatus.FAILED
+            await item.save()
+            return item
 
     await item.fetch_related('session__item_type__price_category')
 
     if parsed_data.get('series_name') and parsed_data.get('issue_number'):
         item.name = f'{parsed_data["series_name"]} #{parsed_data["issue_number"]}'
 
-    item.description = parsed_data.get('description')
+    item.source_description = parsed_data.get('description', '')
     item.publisher = parsed_data.get('publisher')
     item.release_date = parsed_data.get('issue_publication_date')
     item.cover_price = parsed_data.get('cover_price')
