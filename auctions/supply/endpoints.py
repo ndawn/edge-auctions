@@ -31,7 +31,6 @@ from auctions.supply.models import (
 )
 from auctions.supply.parse import parse_item_data
 from auctions.utils.abstract_models import DeleteResponse
-from auctions.utils.templates import build_description
 
 
 router = APIRouter(redirect_slashes=False)

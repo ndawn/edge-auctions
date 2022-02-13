@@ -24,6 +24,7 @@ from auctions.auctioneer.models import (
 )
 from auctions.auctioneer.reactor.base import BaseEventReactor
 from auctions.config import DEBUG, DEFAULT_TIMEZONE
+from auctions.utils.templates import build_description
 
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,7 @@ class VkEventReactor(BaseEventReactor):
         auctions = await set_.auctions.filter().select_related(
             'item__price_category',
             'item__type__price_category',
+            'item__wrap_to',
         )
 
         for auction in auctions:
@@ -101,7 +103,7 @@ class VkEventReactor(BaseEventReactor):
             external_auction = await AmsApiService.upload_to_album(
                 album_id=album.album.album_id,
                 url=main_image.image_url,
-                description=auction.item.build_description(),
+                description=await build_description(auction),
                 auction_uuid=str(auction.uuid),
             )
 
