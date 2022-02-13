@@ -60,6 +60,7 @@ async def list_sessions(
                     uuid=item.uuid,
                     name=item.name,
                     description=item.description,
+                    wrap_to=await item.wrap_to,
                     publisher=item.publisher,
                     release_date=item.release_date,
                     upca=item.upca,
@@ -85,7 +86,7 @@ async def list_sessions(
             updated=session.updated,
         )
         for session in await SupplySession.filter(**filter_params).order_by('-created').select_related(
-            'item_type__price_category'
+            'item_type__price_category',
         )
     ]
 
@@ -111,6 +112,7 @@ async def get_session(
                 uuid=item.uuid,
                 name=item.name,
                 description=item.description,
+                wrap_to=await item.wrap_to,
                 publisher=item.publisher,
                 release_date=item.release_date,
                 upca=item.upca,
@@ -166,6 +168,7 @@ async def create_session(
                 uuid=item.uuid,
                 name=item.name,
                 description=item.description,
+                wrap_to=await item.wrap_to,
                 publisher=item.publisher,
                 release_date=item.release_date,
                 upca=item.upca,
@@ -291,7 +294,8 @@ async def apply_session(
                 PyPriceCategory.from_orm(await item.price_category)
                 if await item.price_category is not None else None
             ),
-            description=await build_description(item),
+            description=item.description,
+            wrap_to=await item.wrap_to,
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
@@ -362,6 +366,7 @@ async def create_item(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
+        wrap_to=await item.wrap_to,
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -407,6 +412,7 @@ async def update_item(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
+        wrap_to=await item.wrap_to,
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -433,7 +439,7 @@ async def parse_item_data_from_upc(
     item_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplyItemWithImages:
-    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session')
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'wrap_to')
 
     if item is None:
         raise HTTPException(
@@ -450,6 +456,7 @@ async def parse_item_data_from_upc(
         uuid=item.uuid,
         name=item.name,
         description=item.description,
+        wrap_to=item.wrap_to,
         publisher=item.publisher,
         release_date=item.release_date,
         upca=item.upca,
@@ -507,7 +514,11 @@ async def join_items(
             detail='Main image must be in the list of selected images',
         )
 
-    item_data_of = await SupplyItem.get_or_none(uuid=data.data_of).select_related('price_category', 'session')
+    item_data_of = await SupplyItem.get_or_none(uuid=data.data_of).select_related(
+        'price_category',
+        'session',
+        'wrap_to',
+    )
     item_to_delete = await SupplyItem.get_or_none(uuid=data.to_delete)
 
     if item_data_of is None:
@@ -559,6 +570,7 @@ async def join_items(
         uuid=item_data_of.uuid,
         name=item_data_of.name,
         description=item_data_of.description,
+        wrap_to=item_data_of.wrap_to,
         publisher=item_data_of.publisher,
         release_date=item_data_of.release_date,
         upca=item_data_of.upca,

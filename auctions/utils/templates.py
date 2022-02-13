@@ -1,4 +1,5 @@
 import re
+from zoneinfo import ZoneInfo
 
 from auctions.auctioneer.models import Auction
 from auctions.config import DEFAULT_TIMEZONE
@@ -35,7 +36,7 @@ TEMPLATE_TAG_MAP = [
     ),
     (
         'date_due',
-        lambda auction: auction.date_due.astimezone(DEFAULT_TIMEZONE).strftime('%d.%m в %H:%M'),
+        lambda auction: auction.date_due.astimezone(ZoneInfo(DEFAULT_TIMEZONE)).strftime('%d.%m в %H:%M'),
     ),
     (
         'anti_sniper',

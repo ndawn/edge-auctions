@@ -260,7 +260,8 @@ async def list_items(
                 updated=item.type.updated,
             ),
             price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
-            description=await build_description(item),
+            description=item.description,
+            wrap_to=item.wrap_to,
             images=[
                 PyImageBase.from_orm(image)
                 for image in await item.images
@@ -271,6 +272,7 @@ async def list_items(
         for item in await Item.filter(filter_params).order_by('-created').select_related(
             'type__price_category',
             'price_category',
+            'wrap_to',
         )
     ]
 
@@ -280,7 +282,7 @@ async def get_item(
     item_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyItemWithImages:
-    item = await Item.get_or_none(uuid=item_uuid).select_related('type__price_category', 'price_category')
+    item = await Item.get_or_none(uuid=item_uuid).select_related('type__price_category', 'price_category', 'wrap_to')
 
     if item is None:
         raise HTTPException(
@@ -293,29 +295,8 @@ async def get_item(
         name=item.name,
         type=PyItemType.from_orm(item.type),
         price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
-        description=await build_description(item),
-        images=[
-            PyImageBase.from_orm(image)
-            for image in await item.images
-        ],
-        created=item.created,
-        updated=item.updated,
-    )
-
-
-@router.post('/items/from_upc', tags=[ITEM_TAG])
-async def create_item_from_upc(
-    data: PyItemCreateFromUPCIn,
-    user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> PyItemWithImages:
-    item = await Item.create(**data.dict())  # TODO
-
-    return PyItemWithImages(
-        uuid=item.uuid,
-        name=item.name,
-        type=PyItemType.from_orm(item.type),
-        price_category=PyPriceCategory.from_orm(item.price_category) if item.price_category is not None else None,
-        description=await build_description(item),
+        description=item.description,
+        wrap_to=item.wrap_to,
         images=[
             PyImageBase.from_orm(image)
             for image in await item.images
@@ -346,7 +327,7 @@ async def delete_item(
 @router.get('/meta', tags=[ITEM_TAG])
 async def get_items_metadata(user: PyUser = Depends(get_current_active_admin)) -> list[PyItemMetaData]:  # noqa
     item_types = await ItemType.all().select_related('price_category')
-    price_categories = set(await PriceCategory.all())
+    price_categories = await PriceCategory.all()
 
     return [
         PyItemMetaData(

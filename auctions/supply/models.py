@@ -89,6 +89,7 @@ class PySupplyItemBase(PyCreatedUpdatedRecordedModel):
     uuid: UUID4
     name: Optional[str]
     description: str
+    wrap_to: Optional[PyItemDescriptionTemplate]
     source_description: Optional[str]
     publisher: Optional[str]
     release_date: Optional[datetime]
@@ -123,6 +124,7 @@ class PySupplyItemUpdateIn(BaseModel):
     upc5: Optional[str]
     price_category_id: Optional[int]
     description: Optional[str]
+    wrap_to_id: Optional[int]
 
 
 class PyJoinItemsIn(BaseModel):
