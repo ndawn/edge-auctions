@@ -49,18 +49,19 @@ WRAP_TAG_NAME = 'include'
 
 
 def build_template(text: str, auction: Auction) -> str:
-    output = ''
+    output = text
 
     for tag, get_tag in TEMPLATE_TAG_MAP:
-        if re.search(r'{ ?%s ?}' % tag, text) is not None:
-            output = re.sub(r'{ ?%s ?}' % tag, str(get_tag(auction)), text)
+        output = re.sub(r'{ ?%s ?}' % tag, str(get_tag(auction)), output)
+
+    output = re.sub(r'{ ?[a-zA-Z0-9_-]* ?}', '', output)
 
     return output
 
 
 async def build_description(auction: Auction) -> str:
     description = auction.item.description
-    await auction.fetch_related('item__wrap_to', 'item__price_category', 'item__type__price_category', 'set')
+    await auction.fetch_related('item__wrap_to', 'item__price_category', 'item__type__price_category', 'set__target')
     if auction.item.wrap_to is not None:
         description = re.sub(r'{ ?%s ?}' % WRAP_TAG_NAME, description, auction.item.wrap_to.text)
 
