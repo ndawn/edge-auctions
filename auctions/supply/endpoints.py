@@ -17,7 +17,7 @@ from auctions.comics.models import (
     PyItemWithImages,
     PyPriceCategory,
 )
-from auctions.depends import get_current_active_admin, SupplySessionUploadStatusTracker
+from auctions.depends import get_current_active_admin
 from auctions.supply.images import create_item_from_image, delete_image_from_s3
 from auctions.supply.models import (
     PySupplyImage,
@@ -182,7 +182,6 @@ async def create_session(
 async def upload_files_to_session(
     session_uuid: str,
     files: list[UploadFile] = File(...),
-    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(SupplySessionUploadStatusTracker()),
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySessionUploadStatus:
     session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
@@ -197,30 +196,37 @@ async def upload_files_to_session(
         )
 
     items = []
-    file_count = len(files)
+    session.total_items = len(files)
+    await session.save()
 
     for i, file in enumerate(files, start=1):
         items.append(await create_item_from_image(file, session))
-        upload_status_tracker.set(session.uuid, PySupplySessionUploadStatus(total=file_count, uploaded=i))
+        session.uploaded_items = i
+        await session.save()
 
-    return upload_status_tracker.pop(session.uuid)
+    return PySupplySessionUploadStatus(
+        total=session.total_items,
+        uploaded=session.uploaded_items,
+    )
 
 
 @router.get('/sessions/{session_uuid}/upload_status', tags=[SESSION_TAG])
 async def get_session_upload_status(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(SupplySessionUploadStatusTracker()),
 ) -> PySupplySessionUploadStatus:
-    upload_status = upload_status_tracker.get(session_uuid)
+    session = await SupplySession.get_or_none(uuid=session_uuid)
 
-    if upload_status is None:
+    if session is None:
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
             detail='Not found',
         )
 
-    return upload_status
+    return PySupplySessionUploadStatus(
+        total=session.total_items,
+        uploaded=session.uploaded_items,
+    )
 
 
 @router.put('/sessions/{session_uuid}', tags=[SESSION_TAG])

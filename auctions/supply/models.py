@@ -18,6 +18,8 @@ class SupplyItemParseStatus(Enum):
 class SupplySession(CreatedUpdatedRecordedModel):
     uuid = fields.UUIDField(pk=True)
     item_type = fields.ForeignKeyField('comics.ItemType', on_delete=fields.RESTRICT)
+    total_items = fields.IntField(default=0)
+    uploaded_items = fields.IntField(default=0)
 
     items: fields.ReverseRelation["SupplyItem"]
 
