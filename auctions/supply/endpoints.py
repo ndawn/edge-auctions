@@ -182,7 +182,7 @@ async def create_session(
 async def upload_files_to_session(
     session_uuid: str,
     files: list[UploadFile] = File(...),
-    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(SupplySessionUploadStatusTracker()),
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySessionUploadStatus:
     session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
@@ -210,7 +210,7 @@ async def upload_files_to_session(
 async def get_session_upload_status(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(SupplySessionUploadStatusTracker()),
 ) -> PySupplySessionUploadStatus:
     upload_status = upload_status_tracker.get(session_uuid)
 
