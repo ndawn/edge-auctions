@@ -65,7 +65,7 @@ async def get_item_type(
     item_type_id: int,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyItemType:
-    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category')
+    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category', 'template_wrap_to')
 
     if item_type is None:
         raise HTTPException(
