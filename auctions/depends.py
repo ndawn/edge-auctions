@@ -39,12 +39,12 @@ class SupplySessionUploadStatusTracker:
     _instance = None
     _sessions: dict[str, PySupplySessionUploadStatus] = {}
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self):
         return self
 
     def __contains__(self, id_: str) -> bool:
