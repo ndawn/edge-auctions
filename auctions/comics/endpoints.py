@@ -14,7 +14,6 @@ from auctions.comics.models import (
     PriceCategory,
     PyImageBase,
     PyItemWithImages,
-    PyItemCreateFromUPCIn,
     PyItemDescriptionTemplate,
     PyItemDescriptionTemplateIn,
     PyItemMetaData,
@@ -27,7 +26,6 @@ from auctions.comics.models import (
 )
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
-from auctions.utils.templates import build_description
 
 
 router = APIRouter(redirect_slashes=False)
@@ -47,6 +45,10 @@ async def list_item_types(
         PyItemType(
             id=item_type.pk,
             name=item_type.name,
+            template_wrap_to=(
+                PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+                if item_type.template_wrap_to is not None else None
+            ),
             price_category=(
                 PyPriceCategory.from_orm(item_type.price_category)
                 if item_type.price_category is not None else None
@@ -74,6 +76,10 @@ async def get_item_type(
     return PyItemType(
         id=item_type_id,
         name=item_type.name,
+        template_wrap_to=(
+            PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+            if item_type.template_wrap_to is not None else None
+        ),
         price_category=(
             PyPriceCategory.from_orm(item_type.price_category)
             if item_type.price_category is not None else None
@@ -103,6 +109,10 @@ async def create_item_type(
     return PyItemType(
         id=item_type.pk,
         name=item_type.name,
+        template_wrap_to=(
+            PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+            if item_type.template_wrap_to is not None else None
+        ),
         price_category=PyPriceCategory.from_orm(item_type.price_category) if price_category is not None else None,
         created=item_type.created,
         updated=item_type.updated,
@@ -123,6 +133,17 @@ async def update_item_type(
             detail='Not found',
         )
 
+    if data.template_wrap_to_id is None:
+        template_wrap_to = None
+    else:
+        template_wrap_to = await ItemDescriptionTemplate.get_or_none(pk=data.template_wrap_to_id)
+
+        if template_wrap_to is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail='Description template with given id is not found',
+            )
+
     if data.price_category_id is None:
         price_category = None
     else:
@@ -139,17 +160,21 @@ async def update_item_type(
     return PyItemType(
         id=item_type_id,
         name=item_type.name,
+        template_wrap_to=(
+            PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+            if template_wrap_to is not None else None
+        ),
         price_category=PyPriceCategory.from_orm(item_type.price_category) if price_category is not None else None,
         created=item_type.created,
         updated=item_type.updated,
     )
 
 
-@router.delete('/itemtypes/{item_type_id}', tags=[ITEM_TYPE_TAG], response_model=dict[str, bool])
+@router.delete('/itemtypes/{item_type_id}', tags=[ITEM_TYPE_TAG])
 async def delete_item_type(
     item_type_id: int,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-) -> dict[str, bool]:
+) -> DeleteResponse:
     item_type = await ItemType.get_or_none(pk=item_type_id)
 
     if item_type is None:
@@ -159,7 +184,7 @@ async def delete_item_type(
         )
 
     await item_type.delete()
-    return {'ok': True}
+    return DeleteResponse()
 
 
 @router.get('/prices', tags=[PRICE_CATEGORY_TAG], response_model=list[PyPriceCategory])

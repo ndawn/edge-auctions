@@ -22,9 +22,14 @@ class PriceCategory(CreatedUpdatedRecordedModel):
 
 class ItemType(CreatedUpdatedRecordedModel):
     name = fields.CharField(max_length=255)
-    description = fields.TextField(null=True)
     price_category = fields.ForeignKeyField(
         'comics.PriceCategory',
+        null=True,
+        related_name=False,
+        on_delete=fields.SET_NULL,
+    )
+    template_wrap_to = fields.ForeignKeyField(
+        'comics.ItemDescriptionTemplate',
         null=True,
         related_name=False,
         on_delete=fields.SET_NULL,
@@ -118,18 +123,9 @@ class PyPriceCategoryUpdateIn(BaseModel):
     bid_multiple_of: Optional[int]
 
 
-class PyItemType(PyCreatedUpdatedRecordedModel):
-    id: int
-    name: str
-    price_category: Optional[PyPriceCategory]
-
-    class Config:
-        orm_mode = True
-
-
 class PyItemTypeIn(BaseModel):
     name: Optional[str]
-    description: Optional[str]
+    template_wrap_to_id: Optional[int]
     price_category_id: Optional[int]
 
 
@@ -148,6 +144,16 @@ class PyItemDescriptionTemplate(PyCreatedUpdatedRecordedModel):
     id: Optional[int]
     alias: str
     text: str
+
+    class Config:
+        orm_mode = True
+
+
+class PyItemType(PyCreatedUpdatedRecordedModel):
+    id: int
+    name: str
+    template_wrap_to: Optional[PyItemDescriptionTemplate]
+    price_category: Optional[PyPriceCategory]
 
     class Config:
         orm_mode = True
