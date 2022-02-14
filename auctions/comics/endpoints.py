@@ -56,7 +56,7 @@ async def list_item_types(
             created=item_type.created,
             updated=item_type.updated,
         )
-        for item_type in await ItemType.all().select_related('price_category')
+        for item_type in await ItemType.all().select_related('price_category', 'template_wrap_to')
     ]
 
 
