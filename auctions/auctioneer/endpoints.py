@@ -51,7 +51,14 @@ from auctions.auctioneer.models import (
     PyExternalSourceIn,
 )
 from auctions.auctioneer.reactor.internal import EventReactor
-from auctions.comics.models import Item, PyImageBase, PyItemType, PyItemWithImages, PyPriceCategory
+from auctions.comics.models import (
+    Item,
+    PyImageBase,
+    PyItemDescriptionTemplate,
+    PyItemType,
+    PyItemWithImages,
+    PyPriceCategory,
+)
 from auctions.config import AUCTION_CLOSE_LIMIT, DEFAULT_TIMEZONE
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
@@ -383,21 +390,21 @@ async def list_auction_sets(
                 external=[
                     PyExternalAuctionTarget(
                         id=ext.pk,
-                        source=PyExternalSource.from_orm(await ext.source),
+                        source=PyExternalSource.from_orm(ext.source),
                         entity_id=ext.entity_id,
                         created=ext.created,
-                    ) for ext in await auction_set.target.external
+                    ) for ext in await auction_set.target.external.filter().select_related('source')
                 ],
                 created=auction_set.target.created,
             ),
             external=[
                 PyExternalAuctionSetOut(
                     id=ext.pk,
-                    source=PyExternalSource.from_orm(await ext.source),
+                    source=PyExternalSource.from_orm(ext.source),
                     entity_id=ext.entity_id,
                     created=ext.created,
                     updated=ext.updated,
-                ) for ext in await auction_set.external
+                ) for ext in await auction_set.external.filter().select_related('source')
             ],
             date_due=auction_set.date_due,
             anti_sniper=auction_set.anti_sniper,
@@ -412,6 +419,10 @@ async def list_auction_sets(
                         type=PyItemType(
                             id=auction.item.type.id,
                             name=auction.item.type.name,
+                            template_wrap_to=(
+                                PyItemDescriptionTemplate.from_orm(auction.item.type.template_wrap_to)
+                                if auction.item.type.template_wrap_to is not None else None
+                            ),
                             price_category=(
                                 PyPriceCategory.from_orm(auction.item.type.price_category)
                                 if auction.item.type.price_category is not None else None
@@ -453,6 +464,7 @@ async def list_auction_sets(
                 for auction in await auction_set.auctions.filter().select_related(
                     'item__price_category',
                     'item__type__price_category',
+                    'item__type__template_wrap_to',
                 )
             ],
             created=auction_set.created,
@@ -477,6 +489,7 @@ async def get_auction_set(
     auctions = await auction_set.auctions.filter().select_related(
         'item__price_category',
         'item__type__price_category',
+        'item__type__template_wrap_to',
         'item__wrap_to',
     )
 
@@ -528,6 +541,10 @@ async def get_auction_set(
                     type=PyItemType(
                         id=auction.item.type.id,
                         name=auction.item.type.name,
+                        template_wrap_to=(
+                            PyItemDescriptionTemplate.from_orm(auction.item.type.template_wrap_to)
+                            if auction.item.type.template_wrap_to is not None else None
+                        ),
                         price_category=(
                             PyPriceCategory.from_orm(auction.item.type.price_category)
                             if auction.item.type.price_category is not None else None
@@ -606,7 +623,12 @@ async def create_auction_set(
                 auction__isnull=True,
                 type_id=category['item_type_id'],
                 price_category_id=price['price_category_id'],
-            ).limit(price['quantity']).select_related('type__price_category', 'price_category', 'wrap_to')
+            ).limit(price['quantity']).select_related(
+                'type__price_category',
+                'type__template_wrap_to',
+                'price_category',
+                'wrap_to',
+            )
             del price['quantity']
 
             for item in price_items:
@@ -636,6 +658,10 @@ async def create_auction_set(
                             type=PyItemType(
                                 id=auction.item.type.id,
                                 name=auction.item.type.name,
+                                template_wrap_to=(
+                                    PyItemDescriptionTemplate.from_orm(auction.item.type.template_wrap_to)
+                                    if auction.item.type.template_wrap_to is not None else None
+                                ),
                                 price_category=(
                                     PyPriceCategory.from_orm(item.type.price_category)
                                     if item.type.price_category is not None else None
@@ -804,6 +830,7 @@ async def get_auction(
         'set__target',
         'item__price_category',
         'item__type__price_category',
+        'item__type__template_wrap_to',
         'item__wrap_to',
     )
 
@@ -814,7 +841,6 @@ async def get_auction(
         )
 
     PyBidWithExternal.update_forward_refs()
-
     return PyAuctionOutFull(
         uuid=auction.uuid,
         item=PyItemWithImages(
@@ -823,6 +849,10 @@ async def get_auction(
             type=PyItemType(
                 id=auction.item.type.pk,
                 name=auction.item.type.name,
+                template_wrap_to=(
+                    PyItemDescriptionTemplate.from_orm(auction.item.type.template_wrap_to)
+                    if auction.item.type.template_wrap_to is not None else None
+                ),
                 price_category=(
                     PyPriceCategory.from_orm(await auction.item.type.price_category)
                     if auction.item.type.price_category is not None else None
@@ -849,11 +879,11 @@ async def get_auction(
                 external=[
                     PyExternalAuctionTarget(
                         id=ext.pk,
-                        source=PyExternalSource.from_orm(await ext.source),
+                        source=PyExternalSource.from_orm(ext.source),
                         entity_id=ext.entity_id,
                         created=ext.created,
                     )
-                    for ext in await auction.set.target.external
+                    for ext in await auction.set.target.external.filter().select_related('source')
                 ],
                 created=auction.set.target.created,
             ),
@@ -918,7 +948,9 @@ async def reroll_auction(
     auction_old = await Auction.get_or_none(uuid=auction_uuid).select_related(
         'set',
         'item__price_category',
+        'item__wrap_to',
         'item__type__price_category',
+        'item__type__template_wrap_to',
     )
 
     if auction_old is None:
@@ -941,7 +973,7 @@ async def reroll_auction(
         auction__isnull=True,
         type=data.item_type_id,
         price_category_id=data.price_category_id,
-    ).select_related('wrap_to')
+    ).select_related('wrap_to', 'price_category', 'type__template_wrap_to', 'type__price_category')
 
     try:
         item = random.choice(item_candidates)
@@ -951,10 +983,10 @@ async def reroll_auction(
             detail='Cannot get an item matching query',
         )
 
-    item_type = await item.type
-    price_category = await item.price_category
+    item_type = item.type
+    price_category = item.price_category
     if price_category is None:
-        price_category = await item_type.price_category
+        price_category = item_type.price_category
 
     auction = await Auction.create(
         set=set_,
@@ -978,6 +1010,10 @@ async def reroll_auction(
             type=PyItemType(
                 id=item_type.pk,
                 name=item_type.name,
+                template_wrap_to=(
+                    PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+                    if item_type.template_wrap_to is not None else None
+                ),
                 price_category=(
                     PyPriceCategory.from_orm(await item_type.price_category)
                     if await item_type.price_category is not None else None

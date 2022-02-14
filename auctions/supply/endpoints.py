@@ -277,7 +277,10 @@ async def apply_session(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ):
-    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
+        'item_type__price_category',
+        'item_type__template_wrap_to',
+    )
 
     if session is None:
         raise HTTPException(
@@ -287,16 +290,16 @@ async def apply_session(
 
     items = []
 
-    for item_ in await session.items:
+    for item_ in await session.items.filter().select_related('price_category', 'wrap_to'):
         item = await Item.create(
             uuid=uuid.uuid4(),
             name=item_.name,
             description=item_.description,
-            wrap_to_id=item_.wrap_to_id,
+            wrap_to=item_.wrap_to,
             type=session.item_type,
             upca=item_.upca,
             upc5=item_.upc5,
-            price_category=await item_.price_category or session.item_type.price_category,
+            price_category=item_.price_category,
         )
 
         for image in await item_.images:
@@ -321,13 +324,13 @@ async def apply_session(
             upca=item.upca,
             upc5=item.upc5,
             price_category=(
-                PyPriceCategory.from_orm(await item.price_category)
-                if await item.price_category is not None else None
+                PyPriceCategory.from_orm(item.price_category)
+                if item.price_category is not None else None
             ),
             description=item.description,
             wrap_to=(
-                PyItemDescriptionTemplate.from_orm(await item.wrap_to)
-                if await item.wrap_to is not None else None
+                PyItemDescriptionTemplate.from_orm(item.wrap_to)
+                if item.wrap_to is not None else None
             ),
             images=[
                 PyImageBase.from_orm(image)
@@ -385,7 +388,10 @@ async def create_item(
     file: UploadFile = File(...),
     user: PyUser = Depends(get_current_active_admin)  # noqa
 ) -> PySupplyItemWithImages:
-    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type')
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
+        'item_type__price_category',
+        'item_type__template_wrap_to',
+    )
 
     if session is None:
         raise HTTPException(
@@ -400,8 +406,8 @@ async def create_item(
         name=item.name,
         description=item.description,
         wrap_to=(
-            PyItemDescriptionTemplate.from_orm(await item.wrap_to)
-            if await item.wrap_to is not None else None
+            PyItemDescriptionTemplate.from_orm(item.wrap_to)
+            if item.wrap_to is not None else None
         ),
         publisher=item.publisher,
         release_date=item.release_date,
@@ -410,8 +416,8 @@ async def create_item(
         cover_price=item.cover_price,
         condition_prices=item.condition_prices,
         price_category=(
-            PyPriceCategory.from_orm(await item.price_category)
-            if await item.price_category is not None else None
+            PyPriceCategory.from_orm(item.price_category)
+            if item.price_category is not None else None
         ),
         parse_status=item.parse_status,
         related_links=item.related_links,
@@ -430,7 +436,7 @@ async def update_item(
     data: PySupplyItemUpdateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplyItemWithImages:
-    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'price_category')
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'price_category', 'wrap_to')
 
     if item is None:
         raise HTTPException(
@@ -449,8 +455,8 @@ async def update_item(
         name=item.name,
         description=item.description,
         wrap_to=(
-            PyItemDescriptionTemplate.from_orm(await item.wrap_to)
-            if await item.wrap_to is not None else None
+            PyItemDescriptionTemplate.from_orm(item.wrap_to)
+            if item.wrap_to is not None else None
         ),
         publisher=item.publisher,
         release_date=item.release_date,
