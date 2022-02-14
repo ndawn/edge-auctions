@@ -160,7 +160,7 @@ async def create_session(
     data: PySupplySessionCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySession:
-    item_type = await ItemType.get_or_none(pk=data.item_type_id).select_related('price_category')
+    item_type = await ItemType.get_or_none(pk=data.item_type_id).select_related('price_category', 'template_wrap_to')
 
     if item_type is None:
         raise HTTPException(
@@ -184,7 +184,10 @@ async def upload_files_to_session(
     files: list[UploadFile] = File(...),
     upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
 ) -> PySupplySessionUploadStatus:
-    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
+        'item_type__price_category',
+        'item_type__template_wrap_to',
+    )
 
     if session is None:
         raise HTTPException(
@@ -225,7 +228,10 @@ async def update_session(
     files: list[UploadFile] = File(...),
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> list[PySupplyItemWithImages]:
-    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
+        'item_type__price_category',
+        'item_type__template_wrap_to',
+    )
 
     if session is None:
         raise HTTPException(
