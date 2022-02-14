@@ -44,6 +44,9 @@ class SupplySessionUploadStatusTracker:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def __call__(self, *args, **kwargs):
+        return self
+
     def __contains__(self, id_: str) -> bool:
         return id_ in self._sessions
 

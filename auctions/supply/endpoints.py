@@ -182,11 +182,9 @@ async def create_session(
 async def upload_files_to_session(
     session_uuid: str,
     files: list[UploadFile] = File(...),
-    # upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySessionUploadStatus:
-    upload_status_tracker = SupplySessionUploadStatusTracker()
-
     session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
         'item_type__price_category',
         'item_type__template_wrap_to',
@@ -212,9 +210,8 @@ async def upload_files_to_session(
 async def get_session_upload_status(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
-    # upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
 ) -> PySupplySessionUploadStatus:
-    upload_status_tracker = SupplySessionUploadStatusTracker()
     upload_status = upload_status_tracker.get(session_uuid)
 
     if upload_status is None:
