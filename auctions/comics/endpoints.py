@@ -171,10 +171,10 @@ async def update_item_type(
         id=item_type_id,
         name=item_type.name,
         template_wrap_to=(
-            PyItemDescriptionTemplate.from_orm(item_type.template_wrap_to)
+            PyItemDescriptionTemplate.from_orm(template_wrap_to)
             if template_wrap_to is not None else None
         ),
-        price_category=PyPriceCategory.from_orm(item_type.price_category) if price_category is not None else None,
+        price_category=PyPriceCategory.from_orm(price_category) if price_category is not None else None,
         created=item_type.created,
         updated=item_type.updated,
     )
