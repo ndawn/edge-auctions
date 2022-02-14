@@ -183,6 +183,7 @@ async def upload_files_to_session(
     session_uuid: str,
     files: list[UploadFile] = File(...),
     upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
+    user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySessionUploadStatus:
     session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
         'item_type__price_category',
