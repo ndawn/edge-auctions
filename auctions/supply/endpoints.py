@@ -96,6 +96,7 @@ async def list_sessions(
         )
         for session in await SupplySession.filter(**filter_params).order_by('-created').select_related(
             'item_type__price_category',
+            'item_type__template_wrap_to',
         )
     ]
 
@@ -105,7 +106,10 @@ async def get_session(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplySessionWithItems:
-    session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
+    session = await SupplySession.get_or_none(uuid=session_uuid).select_related(
+        'item_type__price_category',
+        'item_type__template_wrap_to',
+    )
 
     if session is None:
         raise HTTPException(
