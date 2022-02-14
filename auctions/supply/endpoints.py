@@ -17,7 +17,7 @@ from auctions.comics.models import (
     PyItemWithImages,
     PyPriceCategory,
 )
-from auctions.depends import get_current_active_admin
+from auctions.depends import get_current_active_admin, SupplySessionUploadStatusTracker
 from auctions.supply.images import create_item_from_image, delete_image_from_s3
 from auctions.supply.models import (
     PySupplyImage,
@@ -178,6 +178,7 @@ async def create_session(
 async def upload_files_to_session(
     session_uuid: str,
     files: list[UploadFile] = File(...),
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
 ) -> PySupplySessionUploadStatus:
     session = await SupplySession.get_or_none(uuid=session_uuid).select_related('item_type__price_category')
 
@@ -192,17 +193,18 @@ async def upload_files_to_session(
 
     for i, file in enumerate(files, start=1):
         items.append(await create_item_from_image(file, session))
-        UPLOAD_STATUSES[session.uuid] = PySupplySessionUploadStatus(total=file_count, uploaded=i)
+        upload_status_tracker.set(session.uuid, PySupplySessionUploadStatus(total=file_count, uploaded=i))
 
-    return UPLOAD_STATUSES.pop(session.uuid)
+    return upload_status_tracker.pop(session.uuid)
 
 
 @router.get('/sessions/{session_uuid}/upload_status', tags=[SESSION_TAG])
 async def get_session_upload_status(
     session_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
+    upload_status_tracker: SupplySessionUploadStatusTracker = Depends(),
 ) -> PySupplySessionUploadStatus:
-    upload_status = UPLOAD_STATUSES.get(session_uuid)
+    upload_status = upload_status_tracker.get(session_uuid)
 
     if upload_status is None:
         raise HTTPException(
