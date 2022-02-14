@@ -94,6 +94,16 @@ async def create_item_type(
     data: PyItemTypeIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyItemType:
+    if data.template_wrap_to_id is None:
+        template_wrap_to = None
+    else:
+        template_wrap_to = await ItemDescriptionTemplate.get_or_none(pk=data.template_wrap_to_id)
+
+        if template_wrap_to is None:
+            raise HTTPException(
+                status_code=HTTP_404_NOT_FOUND,
+                detail='Description template with given id is not found',
+            )
     if data.price_category_id is None:
         price_category = None
     else:
@@ -105,7 +115,7 @@ async def create_item_type(
                 detail='Price category with given id is not found',
             )
 
-    item_type = await ItemType.create(name=data.name, price_category=price_category)
+    item_type = await ItemType.create(name=data.name, template_wrap_to=template_wrap_to, price_category=price_category)
     return PyItemType(
         id=item_type.pk,
         name=item_type.name,
@@ -125,7 +135,7 @@ async def update_item_type(
     data: PyItemTypeIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyItemType:
-    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category')
+    item_type = await ItemType.get_or_none(pk=item_type_id).select_related('price_category', 'template_wrap_to')
 
     if item_type is None:
         raise HTTPException(
