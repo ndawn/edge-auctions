@@ -458,7 +458,7 @@ async def update_item(
 
     item = item.update_from_dict(data.dict(exclude_unset=True))
 
-    if item.name is not None and item.price_category_id is not None:
+    if item.name and item.price_category_id is not None:
         item.parse_status = SupplyItemParseStatus.SUCCESS
     elif item.upca and item.upc5:
         item.parse_status = SupplyItemParseStatus.PENDING
