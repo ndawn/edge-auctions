@@ -37,7 +37,12 @@ async def create_item_from_image(file: UploadFile, session: SupplySession) -> Su
 
     file_raw = BytesIO(await file.read())
     exif_data = ExifImage(file_raw)
-    exif_orientation = exif_data.get('orientation', 1)
+    exif_orientation = 1
+    if exif_data.has_exif:
+        try:
+            exif_orientation = exif_data.get('orientation', exif_orientation)
+        except KeyError:
+            pass
     exif_data['orientation'] = 1
 
     file_raw = BytesIO(exif_data.get_file())
