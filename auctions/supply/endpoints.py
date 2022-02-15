@@ -30,6 +30,7 @@ from auctions.supply.models import (
     PyJoinItemsIn,
     SupplyImage,
     SupplyItem,
+    SupplyItemParseStatus,
     SupplySession,
 )
 from auctions.supply.parse import parse_item_data
@@ -452,10 +453,13 @@ async def update_item(
         )
 
     item = item.update_from_dict(data.dict(exclude_unset=True))
-    await item.save()
 
-    if item.session is not None:
-        await item.session.save()
+    if item.upca and item.upc5:
+        item.parse_status = SupplyItemParseStatus.PENDING
+    elif item.name is not None and item.price_category is not None:
+        item.parse_status = SupplyItemParseStatus.SUCCESS
+
+    await item.save()
 
     return PySupplyItemWithImages(
         uuid=item.uuid,
