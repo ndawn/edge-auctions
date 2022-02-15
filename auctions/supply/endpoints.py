@@ -495,7 +495,7 @@ async def parse_item_data_from_upc(
     item_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplyItemWithImages:
-    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'wrap_to')
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'wrap_to', 'price_category')
 
     if item is None:
         raise HTTPException(
