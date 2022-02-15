@@ -444,7 +444,11 @@ async def update_item(
     data: PySupplyItemUpdateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PySupplyItemWithImages:
-    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related('session', 'price_category', 'wrap_to')
+    item = await SupplyItem.get_or_none(uuid=item_uuid).select_related(
+        'session__item_type__price_category',
+        'price_category',
+        'wrap_to',
+    )
 
     if item is None:
         raise HTTPException(
@@ -454,7 +458,7 @@ async def update_item(
 
     item = item.update_from_dict(data.dict(exclude_unset=True))
 
-    if item.name is not None and item.price_category is not None:
+    if item.name is not None and (item.price_category is not None or item.session.item_type.price_category is not None):
         item.parse_status = SupplyItemParseStatus.SUCCESS
     elif item.upca and item.upc5:
         item.parse_status = SupplyItemParseStatus.PENDING

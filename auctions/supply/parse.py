@@ -57,11 +57,14 @@ async def parse_item_data(item: SupplyItem) -> SupplyItem:
     item.cover_price = parsed_data.get('cover_price')
     item.condition_prices = parsed_data.get('condition_prices', {})
     item.related_links = parsed_data.get('related_links', [])
+    item.price_category = item.session.item_type.price_category
 
-    if item.session.item_type.price_category is None:
+    if item.price_category is None:
         item.price_category = await _parse_item_price(item)
 
     item.parse_status = parsed_data.get('status', SupplyItemParseStatus.FAILED)
+    if item.name is not None and item.price_category is not None:
+        item.parse_status = SupplyItemParseStatus.SUCCESS
 
     await item.save()
     return item
