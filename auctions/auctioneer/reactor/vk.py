@@ -99,17 +99,25 @@ class VkEventReactor(BaseEventReactor):
         for auction in auctions:
             images = await auction.item.images
             main_image = next(filter(lambda image: image.is_main, images), None)
+            additional_images = list(
+                map(
+                    lambda image: image.image_url,
+                    filter(lambda image: not image.is_main, images),
+                )
+            )
 
             external_auction = await AmsApiService.upload_to_album(
                 album_id=album.album.album_id,
                 url=main_image.image_url,
                 description=await build_description(auction),
+                attachments=additional_images,
                 auction_uuid=str(auction.uuid),
             )
 
             logger.info(
                 f'Uploaded image to album: group_id={album.album.group.group_id}, '
                 f'album_id={album.album.album_id}, url={main_image.image_url}, auction_uuid={auction.uuid}, '
+                f''
             )
 
             external_auction = await ExternalAuction.create(

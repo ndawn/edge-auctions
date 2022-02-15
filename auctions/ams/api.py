@@ -210,12 +210,19 @@ class AmsApiService:
         return await AmsApiService._request('DELETE', f'/vk/albums/{album_id}')
 
     @staticmethod
-    async def upload_to_album(album_id: int, url: str, description: str, auction_uuid: str) -> Any:
-        return await AmsApiService._request(
-            'POST',
-            f'/vk/albums/{album_id}/upload',
-            {'url': url, 'description': description, 'auction_uuid': auction_uuid},
-        )
+    async def upload_to_album(
+        album_id: int,
+        url: str,
+        description: str,
+        auction_uuid: str,
+        attachments: Optional[list[str]] = None,
+    ) -> Any:
+        params = {'url': url, 'description': description, 'auction_uuid': auction_uuid}
+
+        if attachments:
+            params['attachments'] = attachments
+
+        return await AmsApiService._request('POST', f'/vk/albums/{album_id}/upload', params)
 
     @staticmethod
     async def upload_batch_to_album(album_id: int, batch: list[dict[str, str]]) -> str:

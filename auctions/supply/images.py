@@ -97,6 +97,7 @@ async def create_item_from_image(file: UploadFile, session: SupplySession) -> Su
         parse_status=SupplyItemParseStatus.PENDING if upca and upc5 else SupplyItemParseStatus.FAILED,
         session=session,
         price_category=session.item_type.price_category,
+        description='{{ name }}',
         wrap_to=session.item_type.template_wrap_to,
         upca=upca,
         upc5=upc5,
