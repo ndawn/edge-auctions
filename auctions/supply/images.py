@@ -46,24 +46,25 @@ async def create_item_from_image(file: UploadFile, session: SupplySession) -> Su
     exif_data['orientation'] = 1
 
     file_raw = BytesIO(exif_data.get_file())
+    image = PillowImage.open(file_raw)
 
     if exif_orientation != 1:
-        image_data = PillowImage.open(file_raw)
         rotation = None
         bounds = None
         if exif_orientation == 8:
             rotation = PillowImage.ROTATE_90
-            bounds = tuple(reversed(image_data.size))
+            bounds = tuple(reversed(image.size))
         elif exif_orientation == 3:
             rotation = PillowImage.ROTATE_180
-            bounds = image_data.size
+            bounds = image.size
         elif exif_orientation == 6:
             rotation = PillowImage.ROTATE_270
-            bounds = tuple(reversed(image_data.size))
+            bounds = tuple(reversed(image.size))
 
         rotated_image = PillowImage.new('RGB', bounds)
-        rotated_image.paste(image_data.transpose(rotation))
-        rotated_image.save(object_temp_path)
+        rotated_image.paste(image.transpose(rotation))
+        image = rotated_image
+    image.save(object_temp_path)
 
     thumb: PillowImage.Image = PillowImage.open(object_temp_path)
     thumb.thumbnail(IMAGE_THUMB_BOUNDS, PillowImage.ANTIALIAS)
