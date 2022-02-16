@@ -317,7 +317,12 @@ async def get_item(
     item_uuid: str,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyItemWithImages:
-    item = await Item.get_or_none(uuid=item_uuid).select_related('type__price_category', 'price_category', 'wrap_to')
+    item = await Item.get_or_none(uuid=item_uuid).select_related(
+        'type__price_category',
+        'type__template_wrap_to',
+        'price_category',
+        'wrap_to',
+    )
 
     if item is None:
         raise HTTPException(
