@@ -1,12 +1,13 @@
 import asyncio
 from datetime import datetime
 import json
+from traceback import print_exception
 from typing import Any, Optional
 from urllib.parse import urljoin
 
 from aiohttp import ClientResponse, ClientSession
 from fastapi.exceptions import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
 from auctions.ams.models import Album, Job, User
@@ -87,6 +88,9 @@ class AmsApiService:
             if exc.status_code == HTTP_404_NOT_FOUND:
                 return None
             raise
+        except ValidationError as exc:
+            print_exception(ValidationError, exc, exc.__traceback__)
+            return None
 
     @staticmethod
     async def send_comment(
