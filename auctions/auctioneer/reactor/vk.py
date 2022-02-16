@@ -110,7 +110,7 @@ class VkEventReactor(BaseEventReactor):
                 album_id=album.album.album_id,
                 url=main_image.image_url,
                 description=await build_description(auction),
-                attachments=additional_images,
+                attachments=additional_images or None,
                 auction_uuid=str(auction.uuid),
             )
 
