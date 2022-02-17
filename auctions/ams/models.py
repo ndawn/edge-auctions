@@ -19,6 +19,7 @@ class User(BaseModel):
     first_name: str
     last_name: str
     avatar: str
+    subscriptions: list[int]
 
 
 class Group(BaseModel):

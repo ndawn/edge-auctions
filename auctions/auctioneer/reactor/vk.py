@@ -279,7 +279,10 @@ class VkEventReactor(BaseEventReactor):
         if source is None or source.code != VkEventReactor.SOURCE_ID:
             return
 
+        await bid.fetch_related('auction__set__target')
+
         external_bidder = await bidder.get_external(source)
+        external_target = await bid.auction.set.target.get_external(source)
 
         user = await AmsApiService.get_user(user_id=external_bidder.subject_id)
         if user is not None:
@@ -291,10 +294,9 @@ class VkEventReactor(BaseEventReactor):
             bidder.last_name = user.last_name
             bidder.avatar = user.avatar
             await bidder.save()
-            return
+            if external_target.entity_id in user.subscriptions:
+                return
 
-        await bid.fetch_related('auction__set__target')
-        external_target = await bid.auction.set.target.get_external(source)
         external_auction = await bid.auction.get_external(source)
         external_bid = await bid.get_external(source)
 
