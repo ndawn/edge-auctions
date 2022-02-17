@@ -49,7 +49,7 @@ async def parse_item_data(item: SupplyItem) -> SupplyItem:
     await item.fetch_related('session__item_type__price_category')
 
     if parsed_data.get('series_name') and parsed_data.get('issue_number'):
-        item.name = f'{parsed_data["series_name"]} #{parsed_data["issue_number"]}'
+        item.name = f'{parsed_data["series_name"]} #{parsed_data["issue_number"]}'.upper()
 
     item.source_description = parsed_data.get('description', '')
     item.publisher = parsed_data.get('publisher')
