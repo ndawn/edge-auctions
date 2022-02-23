@@ -113,7 +113,7 @@ class VkEventReactor(BaseEventReactor):
                     album_id=album.album.album_id,
                     url=separator_path,
                     description='',
-                    auction_uuid=str(auction.uuid),
+                    track=False,
                 )
 
             images = await auction.item.images

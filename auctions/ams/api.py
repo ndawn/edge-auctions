@@ -218,11 +218,14 @@ class AmsApiService:
         album_id: int,
         url: str,
         description: str,
-        auction_uuid: str,
+        auction_uuid: Optional[str] = None,
         attachments: Optional[list[str]] = None,
         track: bool = True,
     ) -> Any:
-        params = {'url': url, 'description': description, 'auction_uuid': auction_uuid, 'track': track}
+        params = {'url': url, 'description': description, 'track': track}
+
+        if auction_uuid:
+            params['auction_uuid'] = auction_uuid
 
         if attachments:
             params['attachments'] = attachments
