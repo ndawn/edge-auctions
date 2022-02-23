@@ -108,7 +108,7 @@ class VkEventReactor(BaseEventReactor):
                 current_start_price = auction.bid_start_price
                 current_min_step = auction.bid_min_step
                 separator_path = separator_factory.compose(current_start_price, current_min_step)
-                separator_path = urljoin(APP_URL, '/' + separator_path.lstrip(BASE_DIR).removeprefix('/'))
+                separator_path = urljoin(APP_URL, '/' + separator_path.removeprefix(BASE_DIR).removeprefix('/'))
                 await AmsApiService.upload_to_album(
                     album_id=album.album.album_id,
                     url=separator_path,
