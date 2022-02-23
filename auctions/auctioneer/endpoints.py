@@ -1153,7 +1153,7 @@ async def create_external_bid(
     external_auction = await ExternalAuction.get_or_none(
         entity_id=external_auction_id,
         source=source,
-    ).select_related('auction__set', 'auction__item__price_category', 'auction__item__type__price_category')
+    ).select_related('auction__set__target', 'auction__item__price_category', 'auction__item__type__price_category')
 
     if external_auction is None or not external_auction.auction.is_active:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Provided auction not found or already closed')
@@ -1186,7 +1186,7 @@ async def create_external_bid(
     bidder, bidder_created = await Bidder.get_or_create_from_external(
         data.bidder_id,
         source,
-        external_auction.auction.target,
+        external_auction.auction.set.target,
     )
 
     is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
