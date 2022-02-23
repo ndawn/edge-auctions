@@ -1183,7 +1183,11 @@ async def create_external_bid(
             )
         )
 
-    bidder, bidder_created = await Bidder.get_or_create_from_external(data.bidder_id, source)
+    bidder, bidder_created = await Bidder.get_or_create_from_external(
+        data.bidder_id,
+        source,
+        external_auction.auction.target,
+    )
 
     is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
     is_sniped_ = await is_sniped(now, auction=external_auction.auction)
