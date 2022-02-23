@@ -792,7 +792,7 @@ async def export_auction_set_winners(
             continue
 
         await highest_bid.fetch_related('bidder')
-        external_bidder = highest_bid.bidder.get_external(source)
+        external_bidder = await highest_bid.bidder.get_external(source)
         external_auction = await auction.get_external(source)
         external_auction_link = f'https://vk.com/photo-{external_target.entity_id}_{external_auction.entity_id}'
 
