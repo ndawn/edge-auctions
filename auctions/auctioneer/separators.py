@@ -35,6 +35,7 @@ class SeparatorFactory:
         for background in self._backgrounds:
             if background.ceil_price >= start_price:
                 return background.path
+        return self._backgrounds[0].path
 
     def compose(self, start_price: int, min_step: int) -> str:
         image_file_name = IMAGE_NAME_PATTERN % (start_price, min_step)

@@ -114,6 +114,7 @@ class ExternalAuction(CreatedUpdatedRecordedModel):
 
 
 class Bidder(CreatedUpdatedRecordedModel):
+    target = fields.ForeignKeyField('auctioneer.AuctionTarget', related_name='bidders', on_delete=fields.RESTRICT)
     last_name = fields.CharField(max_length=255, null=True)
     first_name = fields.CharField(max_length=255, null=True)
     avatar = fields.TextField(null=True)
@@ -122,8 +123,16 @@ class Bidder(CreatedUpdatedRecordedModel):
     external: fields.ReverseRelation["ExternalBidder"]
 
     @classmethod
-    async def get_or_create_from_external(cls, subject_id: int, source: ExternalSource) -> tuple["Bidder", bool]:
-        external_bidder = await ExternalBidder.get_or_none(subject_id=subject_id).select_related('bidder')
+    async def get_or_create_from_external(
+        cls,
+        subject_id: int,
+        source: ExternalSource,
+        target: AuctionTarget,
+    ) -> tuple["Bidder", bool]:
+        external_bidder = await ExternalBidder.get_or_none(
+            subject_id=subject_id,
+            bidder__target=target,
+        ).select_related('bidder')
 
         if external_bidder is None:
             bidder = await cls.create(last_name='', first_name='')
