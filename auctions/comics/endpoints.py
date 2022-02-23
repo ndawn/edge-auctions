@@ -272,7 +272,7 @@ async def list_items(
     price_category_id: Optional[int] = None,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> list[PyItemWithImages]:
-    filter_params = Q()
+    filter_params = Q(auction__isnull=True)
 
     if item_type_id is not None:
         filter_params &= Q(type__pk=item_type_id)
