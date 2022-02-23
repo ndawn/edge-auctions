@@ -777,7 +777,7 @@ async def export_auction_set_winners(
     source = await ExternalSource.get(code='vk')
     external_target = await auction_set.target.get_external(source)
 
-    file_path = os.path.join(ASSETS_DIR, f'winners_{auction_set.uuid}.xlsx')
+    file_path = os.path.join(ASSETS_DIR, f'generated/winners_{auction_set.uuid}.xlsx')
     workbook = xlsxwriter.Workbook(file_path)
     worksheet = workbook.add_worksheet('Победители')
 
