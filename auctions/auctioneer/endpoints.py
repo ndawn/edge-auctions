@@ -800,15 +800,15 @@ async def export_auction_set_winners(
         if highest_bid.bidder.first_name and highest_bid.bidder.last_name:
             bidder_name = f'{highest_bid.bidder.first_name} {highest_bid.bidder.last_name}'
 
-        worksheet.write_url(0, i, urljoin(APP_URL, f'/#/auctions/{str(auction.uuid)}'), string=str(auction.uuid))
-        worksheet.write_url(1, i, f'https://vk.com/id{external_bidder.subject_id}', string=bidder_name)
-        worksheet.write_url(2, i, external_auction_link, string=auction.item.name)
-        worksheet.write(3, i, str(highest_bid.value))
+        worksheet.write_url(i, 0, urljoin(APP_URL, f'/#/auctions/{str(auction.uuid)}'), string=str(auction.uuid))
+        worksheet.write_url(i, 1, f'https://vk.com/id{external_bidder.subject_id}', string=bidder_name)
+        worksheet.write_url(i, 2, external_auction_link, string=auction.item.name)
+        worksheet.write(i, 3, str(highest_bid.value))
         overall_income += highest_bid.value
         i += 1
 
-    worksheet.write(2, i, 'Итого:')
-    worksheet.write(3, i, str(overall_income))
+    worksheet.write(i, 2, 'Итого:')
+    worksheet.write(i, 3, str(overall_income))
     workbook.close()
 
     return PyAuctionSetExportOut(url=urljoin(APP_URL, '/' + file_path.removeprefix(BASE_DIR).removeprefix('/')))
