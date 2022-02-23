@@ -1,13 +1,16 @@
 import random
 from datetime import datetime, timedelta
+import os
 from typing import Optional
+from urllib.parse import urljoin
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRouter
-from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
+from starlette.status import HTTP_201_CREATED, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
+import xlsxwriter
 
 from auctions.accounts.models import PyUser
 from auctions.auctioneer.bid_validation import is_sniped, validate_bid
@@ -35,6 +38,7 @@ from auctions.auctioneer.models import (
     PyAuctionSetCloseOut,
     PyAuctionSetCreate,
     PyAuctionSetCreateOut,
+    PyAuctionSetExportOut,
     PyAuctionSetOut,
     PyAuctionSetOutWithTotalEarned,
     PyAuctionTarget,
@@ -59,7 +63,7 @@ from auctions.comics.models import (
     PyItemWithImages,
     PyPriceCategory,
 )
-from auctions.config import AUCTION_CLOSE_LIMIT, DEFAULT_TIMEZONE
+from auctions.config import APP_URL, ASSETS_DIR, AUCTION_CLOSE_LIMIT, BASE_DIR, DEFAULT_TIMEZONE
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
 from auctions.utils.templates import build_description
@@ -749,6 +753,65 @@ async def start_auction_set(
         created=auction_set.created,
         updated=auction_set.updated,
     )
+
+
+@router.post('/sets/{set_uuid}/export_winners', tags=[AUCTION_SET_TAG])
+async def export_auction_set_winners(
+    set_uuid: str,
+    user: PyUser = Depends(get_current_active_admin),  # noqa
+) -> PyAuctionSetExportOut:
+    auction_set = await AuctionSet.get_or_none(uuid=set_uuid).select_related('target')
+
+    if auction_set is None:
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail='Not found',
+        )
+
+    if auction_set.ended is None:
+        raise HTTPException(
+            status_code=HTTP_403_FORBIDDEN,
+            detail='Auction set is not ended yet',
+        )
+
+    source = await ExternalSource.get(code='vk')
+    external_target = await auction_set.target.get_external(source)
+
+    file_path = os.path.join(ASSETS_DIR, f'winners_{auction_set.uuid}.xlsx')
+    workbook = xlsxwriter.Workbook(file_path)
+    worksheet = workbook.add_worksheet('Победители')
+
+    worksheet.write_row(0, 0, ['UUID аукциона', 'Победитель', 'Аукцион', 'Ставка'])
+
+    overall_income = 0
+    i = 1
+
+    for auction in await auction_set.auctions.filter().select_related('item'):
+        highest_bid = await auction.get_last_bid()
+        if highest_bid is None:
+            continue
+
+        await highest_bid.fetch_related('bidder')
+        external_bidder = highest_bid.bidder.get_external(source)
+        external_auction = await auction.get_external(source)
+        external_auction_link = f'https://vk.com/photo-{external_target.entity_id}_{external_auction.entity_id}'
+
+        bidder_name = None
+        if highest_bid.bidder.first_name and highest_bid.bidder.last_name:
+            bidder_name = f'{highest_bid.bidder.first_name} {highest_bid.bidder.last_name}'
+
+        worksheet.write_url(0, i, urljoin(APP_URL, f'/#/auctions/{str(auction.uuid)}'), string=str(auction.uuid))
+        worksheet.write_url(1, i, f'https://vk.com/id{external_bidder.subject_id}', string=bidder_name)
+        worksheet.write_url(2, i, external_auction_link, string=auction.item.name)
+        worksheet.write(3, i, str(highest_bid.value))
+        overall_income += highest_bid.value
+        i += 1
+
+    worksheet.write(2, i, 'Итого:')
+    worksheet.write(3, i, str(overall_income))
+    workbook.close()
+
+    return PyAuctionSetExportOut(url=urljoin(APP_URL, '/' + file_path.removeprefix(BASE_DIR).removeprefix('/')))
 
 
 @router.post('/sets/{set_uuid}/close', tags=[AUCTION_SET_TAG])

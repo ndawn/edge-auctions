@@ -13,3 +13,4 @@ pyzbar~=0.1
 starlette~=0.16
 tortoise-orm~=0.17
 uvicorn~=0.15
+xlsxwriter~=3.0

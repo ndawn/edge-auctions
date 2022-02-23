@@ -135,7 +135,7 @@ class Bidder(CreatedUpdatedRecordedModel):
         ).select_related('bidder')
 
         if external_bidder is None:
-            bidder = await cls.create(last_name='', first_name='')
+            bidder = await cls.create(last_name='', first_name='', target=target)
             await ExternalBidder.create(bidder=bidder, subject_id=subject_id, source=source)
             return bidder, True
 
@@ -494,3 +494,7 @@ class PyAuctionSetCloseOut(BaseModel):
     uuid: str
     ended: Optional[datetime]
     auction_statuses: list[PyAuctionCloseOut]
+
+
+class PyAuctionSetExportOut(BaseModel):
+    url: str
