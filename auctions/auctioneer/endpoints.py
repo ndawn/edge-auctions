@@ -921,7 +921,7 @@ async def get_auction(
                 is_sniped=bid.is_sniped,
                 created=bid.created,
             )
-            for bid in await auction.bids.filter().select_related('bidder')
+            for bid in await auction.bids.filter().select_related('bidder').order_by('-value')
         ],
         external=[
             PyExternalAuctionOut(

@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
 from auctions.ams.api import AmsApiService
@@ -23,7 +24,8 @@ from auctions.auctioneer.models import (
     InvalidBid,
 )
 from auctions.auctioneer.reactor.base import BaseEventReactor
-from auctions.config import DEBUG, DEFAULT_TIMEZONE
+from auctions.auctioneer.separators import SeparatorFactory
+from auctions.config import APP_URL, BASE_DIR, DEBUG, DEFAULT_TIMEZONE, SEPARATORS
 from auctions.utils.templates import build_description
 
 
@@ -94,9 +96,26 @@ class VkEventReactor(BaseEventReactor):
             'item__price_category',
             'item__type__price_category',
             'item__wrap_to',
-        )
+        ).order_by('-item__price_category__bid_start_price')
+
+        separator_factory = SeparatorFactory(SEPARATORS)
+
+        current_start_price = auctions[0].bid_start_price
+        current_min_step = auctions[0].bid_min_step
 
         for auction in auctions:
+            if (current_start_price, current_min_step) != (auction.bid_start_price, auction.bid_min_step):
+                current_start_price = auction.bid_start_price
+                current_min_step = auction.bid_min_step
+                separator_path = separator_factory.compose(current_start_price, current_min_step)
+                separator_path = urljoin(APP_URL, '/' + separator_path.lstrip(BASE_DIR).removeprefix('/'))
+                await AmsApiService.upload_to_album(
+                    album_id=album.album.album_id,
+                    url=separator_path,
+                    description='',
+                    auction_uuid=str(auction.uuid),
+                )
+
             images = await auction.item.images
             main_image = next(filter(lambda image: image.is_main, images), None)
             additional_images = list(

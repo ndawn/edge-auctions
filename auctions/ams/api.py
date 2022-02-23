@@ -220,8 +220,9 @@ class AmsApiService:
         description: str,
         auction_uuid: str,
         attachments: Optional[list[str]] = None,
+        track: bool = True,
     ) -> Any:
-        params = {'url': url, 'description': description, 'auction_uuid': auction_uuid}
+        params = {'url': url, 'description': description, 'auction_uuid': auction_uuid, 'track': track}
 
         if attachments:
             params['attachments'] = attachments
