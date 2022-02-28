@@ -37,5 +37,9 @@ def not_subscribed() -> str:
     )
 
 
+def auction_buyout_request() -> str:
+    return 'Купить сейчас'
+
+
 def auction_buyout() -> str:
     return 'Лот выкуплен по цене "Купить сейчас".'

@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 from typing import Optional
 from urllib.parse import urljoin
@@ -13,7 +13,6 @@ from starlette.status import HTTP_201_CREATED, HTTP_403_FORBIDDEN, HTTP_404_NOT_
 import xlsxwriter
 
 from auctions.accounts.models import PyUser
-from auctions.auctioneer.bid_validation import is_sniped, validate_bid
 from auctions.auctioneer.models import (
     Auction,
     AuctionCloseCodeType,
@@ -54,6 +53,10 @@ from auctions.auctioneer.models import (
     PyExternalSource,
     PyExternalSourceIn,
 )
+from auctions.auctioneer.operations import (
+    perform_create_external_bid,
+    maybe_close_auction,
+)
 from auctions.auctioneer.reactor.internal import EventReactor
 from auctions.comics.models import (
     Item,
@@ -63,7 +66,7 @@ from auctions.comics.models import (
     PyItemWithImages,
     PyPriceCategory,
 )
-from auctions.config import APP_URL, ASSETS_DIR, AUCTION_CLOSE_LIMIT, BASE_DIR, DEFAULT_TIMEZONE
+from auctions.config import APP_URL, ASSETS_DIR, BASE_DIR, DEFAULT_TIMEZONE
 from auctions.depends import get_current_active_admin
 from auctions.utils.abstract_models import DeleteResponse
 from auctions.utils.templates import build_description
@@ -1117,58 +1120,6 @@ async def close_auction(
     return await maybe_close_auction(auction)
 
 
-async def maybe_close_auction(auction: Auction) -> PyAuctionCloseOut:
-    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
-
-    auction_date_due_timestamp = int(auction.date_due.timestamp())
-
-    if auction_date_due_timestamp - AUCTION_CLOSE_LIMIT > now.timestamp():
-        return PyAuctionCloseOut(
-            auction_id=str(auction.uuid),
-            code=AuctionCloseCodeType.NOT_CLOSED_YET,
-            retry_at=auction_date_due_timestamp,
-        )
-    else:
-        if auction.started is None:
-            return PyAuctionCloseOut(
-                auction_id=str(auction.uuid),
-                code=AuctionCloseCodeType.NOT_STARTED_YET,
-            )
-        elif not auction.is_active or auction.ended is not None:
-            return PyAuctionCloseOut(
-                auction_id=str(auction.uuid),
-                code=AuctionCloseCodeType.ALREADY_CLOSED,
-            )
-
-    await perform_auction_close(auction)
-
-    return PyAuctionCloseOut(
-        auction_id=str(auction.uuid),
-        code=AuctionCloseCodeType.CLOSED,
-    )
-
-
-async def perform_auction_close(auction: Auction) -> None:
-    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
-
-    auction.ended = now
-    auction.is_active = False
-    await auction.save()
-
-    if not await auction.set.auctions.filter(ended=None).exists():
-        auction.set.ended = now
-        await auction.set.save()
-
-    await EventReactor.react_auction_closed(auction)
-
-    last_bid = await auction.get_last_bid()
-
-    if last_bid is not None:
-        await last_bid.fetch_related('bidder')
-        if not await last_bid.bidder.has_unclosed_auctions(auction.set):
-            await EventReactor.react_auction_winner(last_bid)
-
-
 @router.delete('/auctions/{auction_uuid}', tags=[AUCTION_TAG])
 async def delete_auction(
     auction_uuid: str,
@@ -1198,116 +1149,27 @@ async def create_external_bid(
     data: PyExternalBidCreateIn,
     user: PyUser = Depends(get_current_active_admin),  # noqa
 ) -> PyBidWithExternal:
-    now = datetime.now(ZoneInfo('UTC')).astimezone(ZoneInfo(DEFAULT_TIMEZONE))
-
-    source = await ExternalSource.get_or_none(code=external_source_id)
-
-    if source is None:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Unsupported external source')
-
-    external_target = await ExternalAuctionTarget.get_or_none(
-        entity_id=external_target_id,
-        source=source,
-    ).select_related('target')
-
-    if external_target is None:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Provided target not found')
-
-    external_auction = await ExternalAuction.get_or_none(
-        entity_id=external_auction_id,
-        source=source,
-    ).select_related('auction__set__target', 'auction__item__price_category', 'auction__item__type__price_category')
-
-    if external_auction is None or not external_auction.auction.is_active:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail='Provided auction not found or already closed')
-
-    bid_validation_result = await validate_bid(data.value, auction=external_auction.auction)
-
-    if bid_validation_result == BidValidationResult.INVALID_BUYOUT:
-        return await EventReactor.react_invalid_buyout(
-            InvalidBid(
-                id=data.bid_id,
-                value=str(data.value),
-                auction=external_auction.auction,
-                external_auction=external_auction,
-                target=external_target,
-                source=source,
-            )
-        )
-    elif bid_validation_result in (BidValidationResult.INVALID_BID, BidValidationResult.INVALID_BEATING):
-        return await EventReactor.react_invalid_bid(
-            InvalidBid(
-                id=data.bid_id,
-                value=str(data.value),
-                auction=external_auction.auction,
-                external_auction=external_auction,
-                target=external_target,
-                source=source,
-            )
-        )
-
-    bidder, bidder_created = await Bidder.get_or_create_from_external(
-        data.bidder_id,
-        source,
-        external_auction.auction.set.target,
+    bid, external_bid = await perform_create_external_bid(
+        external_source_id=external_source_id,
+        external_target_id=external_target_id,
+        external_auction_id=external_auction_id,
+        external_bid_id=data.bid_id,
+        external_bidder_id=data.bidder_id,
+        bid_value=data.value,
     )
 
-    is_buyout = bid_validation_result == BidValidationResult.VALID_BUYOUT
-    is_sniped_ = await is_sniped(now, auction=external_auction.auction)
-
-    last_bid = await external_auction.auction.get_last_bid()
-
-    bid_value = data.value
-
-    if is_buyout:
-        bid_value = (
-            external_auction.auction.item.price_category
-            or external_auction.auction.item.type.price_category
-        ).buy_now_price
-
-    bid = await Bid.create(
-        bidder=bidder,
-        auction=external_auction.auction,
-        value=bid_value,
-        is_sniped=is_sniped_,
-        is_buyout=is_buyout,
-    )
-
-    if last_bid is not None:
-        last_bid.next_bid = bid
-        await last_bid.save()
-
-    external_bid = await ExternalBid.create(
-        bid=bid,
-        entity_id=data.bid_id,
-        source=source,
-    )
-
-    if bidder_created:
-        await EventReactor.react_bidder_created(bidder, bid, source)
-
-    if is_buyout:
-        await EventReactor.react_auction_buyout(bid)
-        await bid.auction.fetch_related('set')
-        await perform_auction_close(bid.auction)
-    else:
-        if is_sniped_:
-            bid.auction.date_due = now + timedelta(minutes=bid.auction.set.anti_sniper)
-            await bid.auction.save()
-            await EventReactor.react_bid_sniped(bid)
-
-        if last_bid is not None:
-            await EventReactor.react_bid_beaten(bid)
+    if bid is None and external_bid is None:
+        ...
 
     PyBidWithExternal.update_forward_refs()
     return PyBidWithExternal(
         id=bid.pk,
         bidder=PyBidder(
-            id=bidder.pk,
-            last_name=bidder.last_name,
-            first_name=bidder.first_name,
-            created=bidder.created,
-            updated=bidder.updated,
+            id=bid.bidder.pk,
+            last_name=bid.bidder.last_name,
+            first_name=bid.bidder.first_name,
+            created=bid.bidder.created,
+            updated=bid.bidder.updated,
         ),
         value=bid.value,
         is_sniped=bid.is_sniped,
@@ -1315,7 +1177,7 @@ async def create_external_bid(
         next_bid=None,
         external=PyExternalBid(
             id=external_bid.pk,
-            source=PyExternalSource.from_orm(source),
+            source=PyExternalSource.from_orm(external_bid.source),
             entity_id=external_bid.entity_id,
             created=external_bid.created,
         ),

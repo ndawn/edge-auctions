@@ -93,6 +93,13 @@ class AmsApiService:
             return None
 
     @staticmethod
+    async def list_comments(
+        group_id: int,
+        album_id: int,
+    ) -> str:
+        return await AmsApiService._request('GET', f'/vk/comments?group_id={group_id}&album_id={album_id}')
+
+    @staticmethod
     async def send_comment(
         group_id: int,
         photo_id: int,
