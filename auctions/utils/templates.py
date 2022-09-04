@@ -1,71 +1,81 @@
 import re
 from zoneinfo import ZoneInfo
 
-from auctions.auctioneer.models import Auction
-from auctions.config import DEFAULT_TIMEZONE
+from auctions.config import Config
+from auctions.db.models.auctions import Auction
+from auctions.dependencies import Provide
+from auctions.dependencies import inject
+
+
+@inject
+def get_default_timezone(config: Config = Provide["config"]) -> str:
+    return config.default_timezone
 
 
 TEMPLATE_TAG_MAP = [
     (
-        'name',
+        "name",
         lambda auction: auction.item.name,
     ),
     (
-        'type',
+        "type",
         lambda auction: auction.item.type.name,
     ),
     (
-        'buy_now_price',
+        "buy_now_price",
         lambda auction: auction.buy_now_price,
     ),
     (
-        'buy_now_expires',
+        "buy_now_expires",
         lambda auction: auction.buy_now_expires,
     ),
     (
-        'bid_start_price',
+        "bid_start_price",
         lambda auction: auction.bid_start_price,
     ),
     (
-        'bid_min_step',
+        "bid_min_step",
         lambda auction: auction.bid_min_step,
     ),
     (
-        'bid_multiple_of',
+        "bid_multiple_of",
         lambda auction: auction.bid_multiple_of,
     ),
     (
-        'date_due',
-        lambda auction: auction.date_due.astimezone(ZoneInfo(DEFAULT_TIMEZONE)).strftime('%d.%m в %H:%M'),
+        "date_due",
+        lambda auction: auction.date_due.astimezone(ZoneInfo(get_default_timezone())).strftime("%d.%m в %H:%M"),
     ),
     (
-        'anti_sniper',
+        "anti_sniper",
         lambda auction: auction.set.anti_sniper,
     ),
 ]
 
 
-WRAP_TAG_NAME = 'include'
-TAG_BOUNDS = ('{{', '}}')
+WRAP_TAG_NAME = "include"
+TAG_BOUNDS = ("{{", "}}")
 
 
 def build_template(text: str, auction: Auction) -> str:
     output = text
 
     for tag, get_tag in TEMPLATE_TAG_MAP:
-        output = re.sub(r'%s ?%s ?%s' % (TAG_BOUNDS[0], tag, TAG_BOUNDS[1]), str(get_tag(auction)), output)
+        output = re.sub(
+            rf"{TAG_BOUNDS[0]} ?{tag} ?{TAG_BOUNDS[1]}",
+            str(get_tag(auction)),
+            output,
+        )
 
-    output = re.sub(r'%s ?[a-zA-Z0-9_-]* ?%s' % TAG_BOUNDS, '', output)
+    output = re.sub(rf"{TAG_BOUNDS[0]} ?[a-zA-Z0-9_-]* ?{TAG_BOUNDS[1]}", "", output)
 
     return output
 
 
-async def build_description(auction: Auction) -> str:
+def build_description(auction: Auction) -> str:
     description = auction.item.description
-    await auction.fetch_related('item__wrap_to', 'item__price_category', 'item__type__price_category', 'set__target')
     if auction.item.wrap_to is not None:
         description = re.sub(
-            r'%s ?%s ?%s' % (TAG_BOUNDS[0], WRAP_TAG_NAME, TAG_BOUNDS[1]),
+            rf"{TAG_BOUNDS[0]} ?{WRAP_TAG_NAME} ?{TAG_BOUNDS[1]}",
             description,
             auction.item.wrap_to.text,
         )
