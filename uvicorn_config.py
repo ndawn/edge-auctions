@@ -6,6 +6,7 @@ import uvicorn
 def run_configured(app):
     config = uvicorn.Config(
         app,
+        host="0.0.0.0",
         port=1337,
         # uds="/sockets/gunicorn.sock",
         workers=cpu_count() + 1,
