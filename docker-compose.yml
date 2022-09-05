@@ -3,6 +3,7 @@ networks:
 
 services:
   app:
+    container_name: edge_auctions_app
     build: .
     volumes:
       - ./logs:/logs
@@ -11,6 +12,7 @@ services:
     networks:
       - bridge
   db:
+    container_name: edge_auctions_db
     image: postgres:latest
     restart: always
     environment:
@@ -25,6 +27,7 @@ services:
     networks:
       - bridge
   client:
+    container_name: edge_auctions_client
     build:
       context: .
       dockerfile: ./nginx.dockerfile
