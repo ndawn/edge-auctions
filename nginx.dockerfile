@@ -3,7 +3,7 @@ FROM node:16-alpine AS frontend
 WORKDIR /static
 
 RUN apk update
-RUN apk add git
+RUN apk add openssh-client git
 RUN --mount=type=ssh git clone git@github.com:ndawn/edge_auctions_client.git .
 
 RUN npm install -g yarn
