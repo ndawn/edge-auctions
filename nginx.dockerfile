@@ -4,8 +4,10 @@ WORKDIR /static
 
 RUN apk update
 RUN apk add openssh-client git
+
 RUN mkdir -p /root/.ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+
 RUN --mount=type=ssh git clone git@github.com:ndawn/edge_auctions_client.git .
 
 RUN yarn
