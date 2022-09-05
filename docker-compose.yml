@@ -33,3 +33,6 @@ services:
       - app
     networks:
       - bridge
+    ports:
+      - 80:80
+      - 443:443

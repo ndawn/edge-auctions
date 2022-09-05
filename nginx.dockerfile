@@ -15,6 +15,9 @@ FROM nginx
 
 WORKDIR /static
 
+EXPOSE 80
+EXPOSE 443
+
 COPY --from=frontend /static /static
 COPY ./static.conf /etc/nginx/conf.d/default.conf
 
