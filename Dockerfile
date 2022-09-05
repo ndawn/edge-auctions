@@ -1,4 +1,4 @@
-FROM python:3.9-buster
+FROM python:3.9-slim
 
 COPY . /app
 WORKDIR /app
@@ -13,11 +13,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     libzbar-dev
 
 RUN pip install poetry
-#RUN poetry export -f requirements.txt --output requirements.txt
 RUN poetry config virtualenvs.create false
-#RUN pip install -r requirements.txt
 RUN poetry install
-
-#RUN apk del build-deps
 
 ENTRYPOINT python3 -m auctions.app
