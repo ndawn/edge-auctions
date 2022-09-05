@@ -13,12 +13,13 @@ services:
       - bridge
   db:
     container_name: edge_auctions_db
-    image: postgres:latest
+    image: postgres:14-alpine
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
+      POSTGRES_HOST: edge_auctions_db
       PGDATA: /db
     ports:
       - 5432:5432
