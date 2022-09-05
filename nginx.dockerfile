@@ -8,7 +8,6 @@ RUN mkdir -p /root/.ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 RUN --mount=type=ssh git clone git@github.com:ndawn/edge_auctions_client.git .
 
-RUN npm install -g yarn
 RUN yarn
 RUN yarn build
 
