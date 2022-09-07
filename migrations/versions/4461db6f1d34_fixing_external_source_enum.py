@@ -17,11 +17,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
+    op.alter_column(
         'external_entities',
         sa.Column('source', sa.Enum('VK', 'TELEGRAM', name='externalsource')),
     )
 
 
 def downgrade() -> None:
-    op.drop_column('external_entities', 'source')
+    pass
