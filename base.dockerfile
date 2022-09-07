@@ -1,5 +1,6 @@
 FROM python:3.9-slim
 
+COPY ./pyproject.toml /app/pyproject.toml
 WORKDIR /app
 
 RUN apt-get update
