@@ -65,6 +65,9 @@ class UsersService:
         except ObjectDoesNotExist as exception:
             raise UserDoesNotExist from exception
 
+        print(f"{password=}")
+        print(f"{user.password=}")
+
         if not self.password_service.check_password(password, user.password):
             raise InvalidPassword
 
