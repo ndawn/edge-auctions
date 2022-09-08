@@ -115,7 +115,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
             "config",
         ],
     },
-    "password_service": {"class_": "auctions.services.passwords.PasswordService"},
+    "password_service": {"class_": "auctions.services.password_service.PasswordService"},
     "auction_sets_repository": {"class_": "auctions.db.repositories.auction_sets.AuctionSetsRepository"},
     "auction_targets_repository": {"class_": "auctions.db.repositories.auction_targets.AuctionTargetsRepository"},
     "auctions_repository": {"class_": "auctions.db.repositories.auctions.AuctionsRepository"},
