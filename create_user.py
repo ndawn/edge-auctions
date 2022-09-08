@@ -9,6 +9,7 @@ from auctions.services.users_service import UsersService
 
 
 app = Flask(__name__)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 
 with app.app_context():
     db = SQLAlchemy(os.getenv("DB_URL"))
