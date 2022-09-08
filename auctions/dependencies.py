@@ -22,7 +22,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
     "config": {"class_": "auctions.config.Config"},
     "users_service": {
         "class_": "auctions.services.users_service.UsersService",
-        "depends": ["auth_tokens_repository", "users_repository"],
+        "depends": ["password_service", "auth_tokens_repository", "users_repository"],
     },
     "crud_service": {
         "class_": "auctions.services.crud_service.CRUDServiceProvider",
