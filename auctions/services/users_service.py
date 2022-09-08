@@ -11,20 +11,21 @@ from auctions.exceptions import InvalidPassword
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import UserAlreadyExists
 from auctions.exceptions import UserDoesNotExist
-from auctions.utils.passwords import check_password
-from auctions.utils.passwords import hash_password
 
 if TYPE_CHECKING:
     from auctions.db.repositories.users import AuthTokensRepository
     from auctions.db.repositories.users import UsersRepository
+    from auctions.services.password_service import PasswordService
 
 
 class UsersService:
     def __init__(
         self,
+        password_service: "PasswordService",
         auth_tokens_repository: "AuthTokensRepository",
         users_repository: "UsersRepository",
     ) -> None:
+        self.password_service = password_service
         self.auth_tokens_repository = auth_tokens_repository
         self.users_repository = users_repository
 
@@ -64,7 +65,7 @@ class UsersService:
         except ObjectDoesNotExist as exception:
             raise UserDoesNotExist from exception
 
-        if not check_password(password, user.password):
+        if not self.password_service.check_password(password, user.password):
             raise InvalidPassword
 
         self.auth_tokens_repository.expire_all(user)
@@ -74,7 +75,7 @@ class UsersService:
         try:
             return self.users_repository.create(
                 username=username,
-                password=hash_password(password),
+                password=self.password_service.hash_password(password),
                 first_name=first_name,
                 last_name=last_name,
             )
