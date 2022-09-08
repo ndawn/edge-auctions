@@ -1,3 +1,4 @@
+from argon2 import PasswordHasher
 from flask import Flask
 from flask import jsonify
 
@@ -15,6 +16,7 @@ def create_app() -> Flask:
     app.config["config"] = config
     app.config["SQLALCHEMY_DATABASE_URI"] = config.db_url
     app.config["SQLALCHEMY_ECHO"] = config.debug
+    app.config["PASSWORD_HASHER"] = PasswordHasher()
     db.init_app(app)
 
     celery.config_from_object(config.celery)
