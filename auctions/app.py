@@ -12,7 +12,7 @@ from uvicorn_config import run_configured
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    app.config["PROFILE_OUTPUT"] = open("/profile/out.log", "a")
+    app.config["PROFILE_OUTPUT"] = open("/logs/profile.log", "a")
     app.wsgi_app = ProfilerMiddleware(app.wsgi_app, stream=app.config["PROFILE_OUTPUT"])
     config = Config()
     config.load("config.yml")
