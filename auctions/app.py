@@ -1,6 +1,7 @@
 from argon2 import PasswordHasher
 from flask import Flask
 from flask import jsonify
+from werkzeug.middleware.profiler import ProfilerMiddleware
 
 from auctions.config import Config
 from auctions.db import db
@@ -11,6 +12,7 @@ from uvicorn_config import run_configured
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
     config = Config()
     config.load("config.yml")
     app.config["config"] = config
