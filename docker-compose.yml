@@ -5,6 +5,7 @@ services:
   app:
     container_name: edge_auctions_app
     build: .
+    restart: always
     volumes:
       - ./logs:/logs
     depends_on:
