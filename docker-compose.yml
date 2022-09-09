@@ -33,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: ./nginx.dockerfile
+    restart: always
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - ./sockets/:/sockets
