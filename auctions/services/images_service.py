@@ -1,12 +1,12 @@
-from io import BytesIO
+import threading
+import time
 from mimetypes import guess_extension
 from mimetypes import guess_type
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-from exif import Image as ExifImage
-from exif._constants import Orientation
+import pyvips
 from flask import current_app
 from PIL import Image as PillowImage
 from pyzbar.pyzbar import ZBarSymbol
@@ -39,9 +39,9 @@ class ImagesService:
         self.separators_min_step_position = config.separators_min_step_position
 
         self.orientation_rotation_map = {
-            Orientation.BOTTOM_RIGHT: PillowImage.ROTATE_180,
-            Orientation.RIGHT_TOP: PillowImage.ROTATE_270,
-            Orientation.LEFT_BOTTOM: PillowImage.ROTATE_90,
+            3: 180,
+            6: 270,
+            8: 90,
         }
 
     def bulk_upload(self, files: list[FileStorage]) -> list[Image]:
@@ -54,7 +54,6 @@ class ImagesService:
 
     def upload_one(self, file: FileStorage) -> Image:
         mime_type, _ = guess_type(file.filename)
-        file_format = mime_type.split("/")[1]
         file_extension = guess_extension(mime_type)
         image_uuid = str(uuid4())
         file_name = f"{image_uuid}{file_extension}"
@@ -71,15 +70,8 @@ class ImagesService:
                 pass
 
         try:
-            file_buffer = BytesIO(file.stream.read())
-            file.close()
-
-            file_buffer = self._normalize_orientation(file_buffer, file_format)
-
-            with open(urls["full"], "wb") as full_image_file:
-                full_image_file.write(file_buffer.getvalue())
-
-            self.make_thumbs(file_buffer, urls)
+            self.save_and_normalize(file, urls["full"])
+            self.make_thumbs(urls)
 
             return self.images_repository.create(
                 mime_type=mime_type,
@@ -92,45 +84,27 @@ class ImagesService:
 
             raise
 
-    def make_thumbs(self, raw_image: BytesIO, urls: dict[str, Path]) -> None:
+    @staticmethod
+    def save_and_normalize(file: FileStorage, save_path: Path) -> None:
+        temp_path = Path(save_path.name).absolute()
+        file.save(temp_path)
+        file.close()
+
+        try:
+            image = pyvips.Image.new_from_file(str(temp_path))
+            image = image.autorot()
+            image.write_to_file(str(save_path), interlace=True, optimize_coding=True, strip=True)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def make_thumbs(self, urls: dict[str, Path]) -> None:
         for thumbnail_type, thumbnail_data in self.thumbnails.items():
-            self.make_thumb(raw_image, urls[thumbnail_type], thumbnail_data)
+            self.make_thumb(urls["full"], urls[thumbnail_type], thumbnail_data)
 
     @staticmethod
-    def make_thumb(
-        raw_image: BytesIO,
-        save_path: Path,
-        thumbnail_data: ThumbnailsType,
-    ) -> None:
-        thumb = PillowImage.open(raw_image)
-        thumb.thumbnail(thumbnail_data["bounds"], PillowImage.ANTIALIAS)
-        thumb.save(save_path)
-
-    def _normalize_orientation(self, raw_image: BytesIO, file_format: str) -> BytesIO:
-        exif_data = ExifImage(raw_image)
-        exif_orientation = Orientation.TOP_LEFT
-
-        if exif_data.has_exif:
-            try:
-                exif_orientation = exif_data["orientation"]
-            except KeyError:
-                pass
-
-        image = PillowImage.open(raw_image)
-
-        image_data = list(image.getdata())
-        image = PillowImage.new(image.mode, image.size)
-        image.putdata(image_data)
-
-        rotation = self.orientation_rotation_map.get(exif_orientation)
-
-        if rotation is not None:
-            image = image.transpose(rotation)
-
-        raw_image.truncate(0)
-        raw_image.seek(0)
-        image.save(raw_image, format=file_format)
-        return raw_image
+    def make_thumb(source_path: Path, target_path: Path, thumbnail_data: ThumbnailsType) -> None:
+        thumb = pyvips.Image.thumbnail(str(source_path), thumbnail_data["bounds"][0])
+        thumb.write_to_file(str(target_path))
 
     @staticmethod
     def scan_barcode(image: Image) -> tuple[Optional[str], Optional[str]]:

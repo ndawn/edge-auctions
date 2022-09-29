@@ -2,8 +2,6 @@ from flask import request
 from webargs import fields
 from webargs.flaskparser import parser
 
-from flask import Response
-
 from auctions.db.models.images import Image
 from auctions.dependencies import Provide
 from auctions.dependencies import inject

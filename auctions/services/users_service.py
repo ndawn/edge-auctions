@@ -1,4 +1,5 @@
 from functools import lru_cache
+from traceback import print_exception
 from typing import TYPE_CHECKING
 from typing import Optional
 
@@ -80,4 +81,5 @@ class UsersService:
                 last_name=last_name,
             )
         except Exception as exception:
+            print_exception(exception.__class__, exception, exception.__traceback__)
             raise UserAlreadyExists from exception

@@ -13,7 +13,7 @@ def get_image(path: str) -> Response:
     path = Path(os.curdir).absolute() / path
 
     if not path.exists():
-        return Response('Not found', status=404)
+        return Response("Not found", status=404)
 
     return Response(path.read_bytes(), mimetype="image/jpeg")
 
