@@ -6,10 +6,7 @@ WORKDIR /app
 RUN apt-get update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3-dev \
-    musl-dev \
-    zlib1g-dev \
-    libjpeg-dev \
-    libjpeg-dev \
+    libvips-dev \
     libzbar-dev
 
 RUN pip install poetry
