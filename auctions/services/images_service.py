@@ -75,7 +75,7 @@ class ImagesService:
 
             return self.images_repository.create(
                 mime_type=mime_type,
-                urls={key: value.relative_to(self.base_dir).as_posix() for key, value in urls.items()},
+                urls={key: str(value.as_posix()) for key, value in urls.items()},
                 is_main=True,
             )
         except Exception:
