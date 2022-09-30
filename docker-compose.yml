@@ -8,6 +8,7 @@ services:
     restart: always
     volumes:
       - ./logs:/logs
+      - ./images:/images
     depends_on:
       - db
     networks:
