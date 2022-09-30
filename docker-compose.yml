@@ -38,6 +38,7 @@ services:
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt
       - ./sockets/:/sockets
+      - ./images:/static/dist/images
     depends_on:
       - app
     networks:
