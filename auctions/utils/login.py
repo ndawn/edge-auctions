@@ -3,12 +3,13 @@ from typing import Callable
 
 from auctions.dependencies import Provide
 from auctions.dependencies import inject
+from auctions.exceptions import ForbiddenError
 from auctions.exceptions import UserNotAuthenticatedError
 from auctions.services.users_service import UsersService
 from auctions.utils.response import JsonResponse
 
 
-def login_required(inject_user: bool = False) -> Callable:
+def login_required(*, is_admin: bool = True, inject_user: bool = False) -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         @inject
@@ -23,6 +24,9 @@ def login_required(inject_user: bool = False) -> Callable:
 
             if user is None:
                 raise UserNotAuthenticatedError()
+
+            if not user.is_admin and is_admin:
+                raise ForbiddenError()
 
             if inject_user:
                 return func(user=user, *args, **kwargs)

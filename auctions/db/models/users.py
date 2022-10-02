@@ -13,6 +13,7 @@ class User(db.Model):
     password: Mapped[str] = db.Column(db.String(255))
     first_name: Mapped[str] = db.Column(db.String(255), default="")
     last_name: Mapped[str] = db.Column(db.String(255), default="")
+    is_admin: Mapped[bool] = db.Column(db.Boolean(), default=False)
 
 
 class AuthToken(db.Model):
