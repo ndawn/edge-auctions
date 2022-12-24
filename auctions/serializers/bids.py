@@ -16,3 +16,7 @@ class BidSerializer(BaseSerializer):
 
     external_id = fields.Int(load_only=True, allow_none=True, allow_blank=True, data_key="externalId")
     external = fields.Nested("ExternalEntitySerializer", dump_only=True, allow_none=True)
+
+
+class CreateBidSerializer(BaseSerializer):
+    value = fields.Int(load_only=True)

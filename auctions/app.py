@@ -50,6 +50,6 @@ app = create_app()
 
 if __name__ == "__main__":
     if app.config["config"].debug:
-        app.run(debug=app.config["config"].debug)
+        app.run(debug=app.config["config"].debug, host="0.0.0.0", ssl_context="adhoc")
     else:
         run_configured(app)

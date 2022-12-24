@@ -44,6 +44,13 @@ def create_crud_blueprint(
         "update",
         "delete",
     ),
+    protected: tuple[str, ...] = (
+        "list",
+        "create",
+        "read",
+        "update",
+        "delete",
+    ),
 ) -> Blueprint:
     name_singular = to_snake_case(model.__name__)
     name_plural = model.__tablename__
@@ -141,7 +148,7 @@ def create_crud_blueprint(
         apply_decorators(
             bind_function_name(func, func_name),
             inject,
-            login_required(),
+            login_required(is_admin=operation in protected),
             with_error_handler,
             method(endpoint),
         )

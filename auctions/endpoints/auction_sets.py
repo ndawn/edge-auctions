@@ -21,6 +21,7 @@ blueprint = create_crud_blueprint(
         "page_size": fields.Int(required=False, default=50),
     },
     operations=("list", "read", "delete"),
+    protected=("delete",),
 )
 
 

@@ -19,6 +19,7 @@ blueprint = create_crud_blueprint(
     create_args=ExternalEntityCreateSerializer(),
     update_args=ExternalEntitySerializer(partial=True),
     operations=("read", "update", "delete"),
+    protected=("read", "update", "delete"),
 )
 
 

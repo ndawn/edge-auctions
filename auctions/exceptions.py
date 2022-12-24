@@ -60,12 +60,20 @@ class UserDoesNotExist(NotAuthorizedError):
     default_message: str = "User does not exist"
 
 
+class UserIsNotPermittedToAuthWithPassword(NotAuthorizedError):
+    default_message: str = "User is not permitted to authenticate using password"
+
+
 class UserAlreadyExists(ConflictError):
     default_message: str = "User already exists"
 
 
 class InvalidPassword(NotAuthorizedError):
     default_message: str = "Invalid password"
+
+
+class InvalidSignature(NotAuthorizedError):
+    default_message: str = "Invalid signature"
 
 
 class InvalidAuthToken(NotAuthorizedError):

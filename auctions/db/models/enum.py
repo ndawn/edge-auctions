@@ -35,6 +35,7 @@ class ExternalSource(Enum):
 class ExternalTokenType(Enum):
     VK_USER = "VK_USER"
     VK_GROUP = "VK_GROUP"
+    VK_SERVICE = "VK_SERVICE"
     TELEGRAM_BOT = "TELEGRAM_BOT"
 
 

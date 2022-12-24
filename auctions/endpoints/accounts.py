@@ -6,6 +6,7 @@ from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.serializers.users import AuthTokenSerializer
 from auctions.serializers.users import UserSerializer
+from auctions.serializers.miniapp import MiniappLoginSerializer
 from auctions.services.users_service import UsersService
 from auctions.utils.error_handler import with_error_handler
 from auctions.utils.login import login_required
@@ -16,7 +17,7 @@ blueprint = Blueprint("accounts", __name__, url_prefix="/accounts")
 
 @blueprint.get("/me")
 @with_error_handler
-@login_required(inject_user=True)
+@login_required(is_admin=False, inject_user=True)
 @inject
 def me(*, user: User, user_serializer: UserSerializer = Provide["user_serializer"]) -> JsonResponse:
     return JsonResponse(user_serializer.dump(user))
@@ -42,14 +43,29 @@ def login(
     return JsonResponse(auth_token_serializer.dump(auth_token))
 
 
+@blueprint.post("/login/miniapp")
+@with_error_handler
+@inject
+def login_from_miniapp(
+    users_service: UsersService = Provide["users_service"],
+    auth_token_serializer: AuthTokenSerializer = Provide["auth_token_serializer"],
+    miniapp_login_serializer: MiniappLoginSerializer = Provide["miniapp_login_serializer"],
+) -> JsonResponse:
+    args = parser.parse(miniapp_login_serializer)
+    auth_token = users_service.login_or_create_external(args)
+    return JsonResponse(auth_token_serializer.dump(auth_token))
+
+
 @blueprint.post("/register")
 @with_error_handler
+@login_required()
 @inject
 def register(
     users_service: UsersService = Provide["users_service"],
     auth_token_serializer: AuthTokenSerializer = Provide["auth_token_serializer"],
+    user_serializer: UserSerializer = Provide["user_serializer"],
 ) -> JsonResponse:
-    args = parser.parse(UserSerializer())
+    args = parser.parse(user_serializer)
 
     username = args.get("username")
     password = args.get("password")

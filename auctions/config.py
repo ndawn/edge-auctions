@@ -23,6 +23,7 @@ class SeparatorsType(TypedDict):
 
 class VkType(TypedDict):
     v: str
+    client_secret: str
     subscribe_id: int
 
 

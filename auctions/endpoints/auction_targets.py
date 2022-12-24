@@ -13,4 +13,5 @@ blueprint = create_crud_blueprint(
     },
     create_args=AuctionTargetSerializer(),
     update_args=AuctionTargetSerializer(partial=True),
+    protected=("create", "update", "delete"),
 )

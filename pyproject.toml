@@ -33,6 +33,7 @@ flasgger = "^0.9.5"
 apispec-webframeworks = "^0.5.2"
 argon2-cffi = "^21.3.0"
 pyvips = "^2.2.1"
+cryptography = "^38.0.4"
 
 [tool.poetry.dev-dependencies]
 isort = "^5.10.1"

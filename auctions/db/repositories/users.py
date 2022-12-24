@@ -6,6 +6,7 @@ from typing import Type
 from flask import current_app
 
 from auctions.db.models.users import AuthToken
+from auctions.db.models.users import ExternalUser
 from auctions.db.models.users import User
 from auctions.db.repositories.base import Repository
 
@@ -16,6 +17,16 @@ class UsersRepository(Repository[User]):
     @property
     def model(self) -> Type[User]:
         return User
+
+
+class ExternalUsersRepository(Repository[ExternalUser]):
+    joined_fields = (
+        ExternalUser.user,
+    )
+
+    @property
+    def model(self) -> Type[ExternalUser]:
+        return ExternalUser
 
 
 class AuthTokensRepository(Repository[AuthToken]):
