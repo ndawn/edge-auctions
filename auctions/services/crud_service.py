@@ -24,6 +24,7 @@ from auctions.db.repositories.price_categories import PriceCategoriesRepository
 from auctions.db.repositories.sessions import SupplySessionsRepository
 from auctions.db.repositories.templates import TemplatesRepository
 from auctions.db.repositories.users import AuthTokensRepository
+from auctions.db.repositories.users import ExternalUsersRepository
 from auctions.db.repositories.users import UsersRepository
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import HTTPError
@@ -48,6 +49,7 @@ class CRUDServiceProvider:
         bids_repository: BidsRepository,
         external_entities_repository: ExternalEntitiesRepository,
         external_tokens_repository: ExternalTokensRepository,
+        external_users_repository: ExternalUsersRepository,
         images_repository: ImagesRepository,
         item_types_repository: ItemTypesRepository,
         items_repository: ItemsRepository,
@@ -66,6 +68,7 @@ class CRUDServiceProvider:
             bids_repository,
             external_entities_repository,
             external_tokens_repository,
+            external_users_repository,
             images_repository,
             item_types_repository,
             items_repository,

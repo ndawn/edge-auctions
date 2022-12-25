@@ -8,6 +8,8 @@ from auctions.endpoints import root_blueprint
 from auctions.tasks import celery
 from uvicorn_config import run_configured
 
+from flask_cors import CORS
+
 
 def create_app() -> Flask:
     app = Flask(__name__)
@@ -50,6 +52,11 @@ app = create_app()
 
 if __name__ == "__main__":
     if app.config["config"].debug:
-        app.run(debug=app.config["config"].debug, host="0.0.0.0", ssl_context="adhoc")
+        CORS(app)
+        app.run(
+            debug=app.config["config"].debug,
+            host="0.0.0.0",
+            ssl_context=("C:\\Users\\burmi\\localhost+2.pem", "C:\\Users\\burmi\\localhost+2-key.pem"),
+        )
     else:
         run_configured(app)

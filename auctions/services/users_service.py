@@ -93,9 +93,9 @@ class UsersService:
         user_id = query.get("vk_user_id")
         app_id = query.get("vk_app_id")
 
-        user = self.external_users_repository.get_one_by_id(user_id)
-
-        if user is None:
+        try:
+            user = self.external_users_repository.get_one_by_id(user_id).user
+        except ObjectDoesNotExist:
             user_info = self.vk_request_service.get_user(app_id, user_id)
             user = self.users_repository.create(
                 username=str(user_id),

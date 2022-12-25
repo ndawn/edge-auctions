@@ -25,15 +25,14 @@ pyzbar = "^0.1"
 requests = "^2.28"
 sqlalchemy = "^1.4"
 uvicorn = "^0.18"
-vk = "^3.0"
 webargs = "^8.2"
 xlsxwriter = "^3.0"
-apispec = {extras = ["flask"], version = "^5.2.2"}
-flasgger = "^0.9.5"
-apispec-webframeworks = "^0.5.2"
 argon2-cffi = "^21.3.0"
 pyvips = "^2.2.1"
 cryptography = "^38.0.4"
+Flask-Cors = "^3.0.10"
+PyYAML = "^6.0"
+vk = "^3.0"
 
 [tool.poetry.dev-dependencies]
 isort = "^5.10.1"

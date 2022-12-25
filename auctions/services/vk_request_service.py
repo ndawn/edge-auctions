@@ -166,7 +166,7 @@ class VKRequestService:
     @use_token(ExternalTokenType.VK_SERVICE)
     def get_user(self, app_id: int, user_id: int, *, token_type: ExternalTokenType) -> dict[str, Any]:
         token = self.external_tokens_repository.get_token(str(app_id), token_type)
-        self.external_tokens_repository.wait_unblock(token)
+        # self.external_tokens_repository.wait_unblock(token)
         result = API(
             access_token=token.token,
             v=current_app.config["config"].vk["v"],
