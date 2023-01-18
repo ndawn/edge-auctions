@@ -15,6 +15,7 @@ from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.elements import True_
 from sqlalchemy.sql.selectable import FromClause
 
+from auctions.config import Config
 from auctions.db import db
 from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.auction_targets import AuctionTarget
@@ -56,9 +57,10 @@ Model = TypeVar(
 
 class Repository(Generic[Model]):
     default_page_size: int = 50
-    joined_fields: tuple[InstrumentedAttribute, ...]
+    joined_fields: tuple[InstrumentedAttribute, ...] = ()
 
-    def __init__(self, session: Optional[Session] = None) -> None:
+    def __init__(self, config: Config, session: Optional[Session] = None) -> None:
+        self.config = config
         self.session = session or db.session
 
     @property

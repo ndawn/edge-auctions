@@ -1,6 +1,7 @@
 import time
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Type
 
 from flask import current_app
@@ -23,6 +24,8 @@ class ExternalEntitiesRepository(Repository[ExternalEntity]):
 
 
 class ExternalTokensRepository(Repository[ExternalToken]):
+
+
     joined_fields = (ExternalToken.entity,)
 
     @property
@@ -32,14 +35,13 @@ class ExternalTokensRepository(Repository[ExternalToken]):
     def get_token(self, entity_id: str, token_type: ExternalTokenType) -> ExternalToken:
         return self.get_one((ExternalEntity.entity_id == entity_id) & (ExternalToken.type == token_type))
 
-    @staticmethod
-    def wait_unblock(token: ExternalToken) -> None:
+    def wait_unblock(self, token: ExternalToken) -> None:
         db.session.refresh(token)
 
         with db.session.begin_nested():
             db.session.execute("lock table external_tokens in row exclusive mode")
-            now = datetime.utcnow()
-            rate_limit = current_app.config["config"].vk["rate_limit"][token.type.value]
+            now = datetime.now(timezone.utc)
+            rate_limit = self.config.rate_limits.get(token.type.value, 0)
 
             request_history = sorted(
                 filter(

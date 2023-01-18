@@ -1,9 +1,8 @@
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from secrets import token_urlsafe
 from typing import Type
-
-from flask import current_app
 
 from auctions.db.models.users import AuthToken
 from auctions.db.models.users import ExternalUser
@@ -41,7 +40,7 @@ class AuthTokensRepository(Repository[AuthToken]):
             (AuthToken.user == user)
             & (
                 AuthToken.created_at
-                < datetime.utcnow() - timedelta(seconds=current_app.config["config"].token_expire_time)
+                < datetime.now(timezone.utc) - timedelta(seconds=self.config.token_expire_time)
             ),
             with_pagination=False,
         )

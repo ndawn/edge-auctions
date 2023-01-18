@@ -1,18 +1,23 @@
+from collections import defaultdict
 from typing import Any
 
-from flask import current_app
-
 from auctions.config import Config
-from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.enum import SupplyItemParseStatus
 from auctions.db.models.items import Item
 from auctions.db.repositories.items import ItemsRepository
+from auctions.db.repositories.item_types import ItemTypesRepository
 
 
 class ItemsService:
-    def __init__(self, items_repository: ItemsRepository) -> None:
+    def __init__(
+        self,
+        items_repository: ItemsRepository,
+        item_types_repository: ItemTypesRepository,
+        config: Config,
+    ) -> None:
         self.items_repository = items_repository
-        self.config: Config = current_app.config["config"]
+        self.item_types_repository = item_types_repository
+        self.config = config
 
     def list_items(self, filters: dict[str, Any]) -> list[Item]:
         filter_predicate = (Item.auction == None) & (Item.session == None)
@@ -29,6 +34,50 @@ class ItemsService:
             filter_predicate &= (Item.price_category_id == price_category_id)
 
         return self.items_repository.get_many(filter_predicate, page=page, page_size=page_size)
+
+    def get_counters(self) -> list[dict[str, Any]]:
+        item_types = self.item_types_repository.get_many(with_pagination=False)
+
+        counters = []
+        price_categories = {}
+
+        for item_type in item_types:
+            price_categories_counters = defaultdict(int)
+
+            counter = {
+                "item_type": item_type,
+                "prices": [],
+            }
+
+            for item in item_type.items:
+                if item.auction is not None:
+                    continue
+
+                if item.price_category.id not in price_categories:
+                    price_categories[item.price_category.id] = item.price_category
+
+                price_categories_counters[item.price_category.id] += 1
+
+            for price_category_id in price_categories_counters:
+                counter["prices"].append({
+                    "price_category": price_categories[price_category_id],
+                    "count": price_categories_counters[price_category_id],
+                })
+
+            counters.append(counter)
+
+        return counters
+
+    def get_random_set(self, amounts: dict[int, dict[int, int]]) -> list[Item]:
+        return self.items_repository.get_random_set(amounts)
+
+    def get_random_item_for_auction(
+        self,
+        item_type_id: int,
+        price_category_id: int,
+        exclude_ids: list[int],
+    ) -> Item | None:
+        return self.items_repository.get_random_one(item_type_id, price_category_id, exclude_ids)
 
     def update_item(self, id_: int, data: dict[str, Any]) -> Item:
         item = self.items_repository.get_one_by_id(id_)

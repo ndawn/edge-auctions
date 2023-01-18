@@ -5,15 +5,9 @@ from auctions.serializers.base import BaseSerializer
 
 class AuctionSetCreateSerializer(BaseSerializer):
     target_id = fields.Int(required=True, data_key="targetId")
-    amounts = fields.Dict(
-        keys=fields.Int(required=True),
-        values=fields.Dict(
-            keys=fields.Int(required=True),
-            values=fields.Int(required=True),
-            required=True,
-        ),
-        required=True,
-    )
+    date_due = fields.DateTime(required=True, data_key="dateDue")
+    anti_sniper = fields.Int(required=True, data_key="antiSniper")
+    item_ids = fields.List(fields.Int(), required=True, data_key="itemIds")
 
 
 class AuctionSetSerializer(BaseSerializer):

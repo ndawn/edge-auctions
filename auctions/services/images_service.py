@@ -1,5 +1,3 @@
-import threading
-import time
 from mimetypes import guess_extension
 from mimetypes import guess_type
 from pathlib import Path
@@ -7,36 +5,21 @@ from typing import Optional
 from uuid import uuid4
 
 import pyvips
-from flask import current_app
 from PIL import Image as PillowImage
 from pyzbar.pyzbar import ZBarSymbol
 from pyzbar.pyzbar import decode
 from werkzeug.formparser import FileStorage
 
 from auctions.config import Config
-from auctions.config import ThumbnailsType
 from auctions.db.models.images import Image
 from auctions.db.models.items import Item
 from auctions.db.repositories.images import ImagesRepository
 
 
 class ImagesService:
-    def __init__(self, images_repository: ImagesRepository) -> None:
+    def __init__(self, images_repository: ImagesRepository, config: Config) -> None:
         self.images_repository = images_repository
-
-        config: Config = current_app.config["config"]
-
-        self.base_dir = config.BASE_DIR
-        self.assets_path = config.assets_path
-        self.images_path = config.images_path
-        self.full_images_path = config.full_images_path
-        self.thumbnails = config.thumbnails
-        self.separators_path = config.separators_path
-        self.separators_generated_path = config.separators_generated_path
-        self.separators_text_file_path = config.separators_text_file_path
-        self.separators_font_file_path = config.separators_font_file_path
-        self.separators_start_price_position = config.separators_start_price_position
-        self.separators_min_step_position = config.separators_min_step_position
+        self.config = config
 
         self.orientation_rotation_map = {
             3: 180,
@@ -59,13 +42,16 @@ class ImagesService:
         file_name = f"{image_uuid}{file_extension}"
 
         urls = {
-            "full": self.full_images_path / file_name,
-            **{thumbnail_type: thumbnail["path"] / file_name for thumbnail_type, thumbnail in self.thumbnails.items()},
+            "full": self.config.full_images_path / file_name,
+            **{
+                thumbnail_type: thumbnail["path"] / file_name
+                for thumbnail_type, thumbnail in self.config.thumbnails.items()
+            },
         }
 
-        if not self.full_images_path.exists():
+        if not self.config.full_images_path.exists():
             try:
-                self.full_images_path.mkdir(parents=True)
+                self.config.full_images_path.mkdir(parents=True)
             except FileExistsError:
                 pass
 
@@ -98,11 +84,11 @@ class ImagesService:
             temp_path.unlink(missing_ok=True)
 
     def make_thumbs(self, urls: dict[str, Path]) -> None:
-        for thumbnail_type, thumbnail_data in self.thumbnails.items():
+        for thumbnail_type, thumbnail_data in self.config.thumbnails.items():
             self.make_thumb(urls["full"], urls[thumbnail_type], thumbnail_data)
 
     @staticmethod
-    def make_thumb(source_path: Path, target_path: Path, thumbnail_data: ThumbnailsType) -> None:
+    def make_thumb(source_path: Path, target_path: Path, thumbnail_data: dict[str, ...]) -> None:
         thumb = pyvips.Image.thumbnail(str(source_path), thumbnail_data["bounds"][0])
         thumb.write_to_file(str(target_path))
 

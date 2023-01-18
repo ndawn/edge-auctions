@@ -20,4 +20,4 @@ class AuctionSerializer(BaseSerializer):
     ended_at = fields.DateTime(dump_only=True, allow_none=True, allow_blank=True, data_key="endedAt")
 
     bids = fields.Nested("BidSerializer", exclude=("auction",), many=True, dump_only=True)
-    external = fields.Nested("ExternalSerializer", dump_only=True)
+    external = fields.Nested("ExternalEntitySerializer", many=True, dump_only=True)

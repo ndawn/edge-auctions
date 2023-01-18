@@ -9,7 +9,6 @@ from typing import TypeVar
 
 from sqlalchemy.orm import Session
 
-from auctions.config import Config
 from auctions.db.session import SessionManager
 
 
@@ -20,6 +19,7 @@ class DependencyMapType(TypedDict):
 
 DEPENDENCIES: dict[str, DependencyMapType] = {
     "config": {"class_": "auctions.config.Config"},
+    "task_queue": {"class_": "dramatiq.dramatiq"},
     "users_service": {
         "class_": "auctions.services.users_service.UsersService",
         "depends": [
@@ -28,6 +28,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
             "external_users_repository",
             "users_repository",
             "vk_request_service",
+            "config",
         ],
     },
     "crud_service": {
@@ -53,11 +54,11 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
     },
     "images_service": {
         "class_": "auctions.services.images_service.ImagesService",
-        "depends": ["images_repository"],
+        "depends": ["images_repository", "config"],
     },
     "items_service": {
         "class_": "auctions.services.items_service.ItemsService",
-        "depends": ["items_repository"],
+        "depends": ["items_repository", "item_types_repository", "config"],
     },
     "supply_service": {
         "class_": "auctions.services.supply_service.SupplyService",
@@ -82,6 +83,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
         "class_": "auctions.services.auctions_service.AuctionsService",
         "depends": [
             "crud_service",
+            "vk_notification_service",
             "auction_sets_repository",
             "auction_targets_repository",
             "auctions_repository",
@@ -89,6 +91,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
             "bids_repository",
             "external_entities_repository",
             "items_repository",
+            "config",
         ],
     },
     "vk_auctions_service": {
@@ -109,33 +112,82 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
             "bidders_repository",
             "external_entities_repository",
             "external_tokens_repository",
+            "config",
         ],
     },
     "vk_notification_service": {
         "class_": "auctions.services.vk_notification_service.VKNotificationService",
-        "depends": ["vk_request_service"],
+        "depends": ["vk_request_service", "config"],
     },
     "vk_request_service": {
         "class_": "auctions.services.vk_request_service.VKRequestService",
-        "depends": ["external_tokens_repository"],
+        "depends": ["external_tokens_repository", "config"],
     },
     "password_service": {"class_": "auctions.services.password_service.PasswordService"},
-    "auction_sets_repository": {"class_": "auctions.db.repositories.auction_sets.AuctionSetsRepository"},
-    "auction_targets_repository": {"class_": "auctions.db.repositories.auction_targets.AuctionTargetsRepository"},
-    "auctions_repository": {"class_": "auctions.db.repositories.auctions.AuctionsRepository"},
-    "bidders_repository": {"class_": "auctions.db.repositories.bidders.BiddersRepository"},
-    "bids_repository": {"class_": "auctions.db.repositories.bids.BidsRepository"},
-    "external_entities_repository": {"class_": "auctions.db.repositories.external.ExternalEntitiesRepository"},
-    "external_tokens_repository": {"class_": "auctions.db.repositories.external.ExternalTokensRepository"},
-    "external_users_repository": {"class_": "auctions.db.repositories.users.ExternalUsersRepository"},
-    "images_repository": {"class_": "auctions.db.repositories.images.ImagesRepository"},
-    "item_types_repository": {"class_": "auctions.db.repositories.item_types.ItemTypesRepository"},
-    "items_repository": {"class_": "auctions.db.repositories.items.ItemsRepository"},
-    "price_categories_repository": {"class_": "auctions.db.repositories.price_categories.PriceCategoriesRepository"},
-    "supply_sessions_repository": {"class_": "auctions.db.repositories.sessions.SupplySessionsRepository"},
-    "templates_repository": {"class_": "auctions.db.repositories.templates.TemplatesRepository"},
-    "auth_tokens_repository": {"class_": "auctions.db.repositories.users.AuthTokensRepository"},
-    "users_repository": {"class_": "auctions.db.repositories.users.UsersRepository"},
+    "auction_sets_repository": {
+        "class_": "auctions.db.repositories.auction_sets.AuctionSetsRepository",
+        "depends": ["config"],
+    },
+    "auction_targets_repository": {
+        "class_": "auctions.db.repositories.auction_targets.AuctionTargetsRepository",
+        "depends": ["config"],
+    },
+    "auctions_repository": {
+        "class_": "auctions.db.repositories.auctions.AuctionsRepository",
+        "depends": ["config"],
+    },
+    "bidders_repository": {
+        "class_": "auctions.db.repositories.bidders.BiddersRepository",
+        "depends": ["config"],
+    },
+    "bids_repository": {
+        "class_": "auctions.db.repositories.bids.BidsRepository",
+        "depends": ["config"],
+    },
+    "external_entities_repository": {
+        "class_": "auctions.db.repositories.external.ExternalEntitiesRepository",
+        "depends": ["config"],
+    },
+    "external_tokens_repository": {
+        "class_": "auctions.db.repositories.external.ExternalTokensRepository",
+        "depends": ["config"],
+    },
+    "external_users_repository": {
+        "class_": "auctions.db.repositories.users.ExternalUsersRepository",
+        "depends": ["config"],
+    },
+    "images_repository": {
+        "class_": "auctions.db.repositories.images.ImagesRepository",
+        "depends": ["config"],
+    },
+    "item_types_repository": {
+        "class_": "auctions.db.repositories.item_types.ItemTypesRepository",
+        "depends": ["config"],
+    },
+    "items_repository": {
+        "class_": "auctions.db.repositories.items.ItemsRepository",
+        "depends": ["config"],
+    },
+    "price_categories_repository": {
+        "class_": "auctions.db.repositories.price_categories.PriceCategoriesRepository",
+        "depends": ["config"],
+    },
+    "supply_sessions_repository": {
+        "class_": "auctions.db.repositories.sessions.SupplySessionsRepository",
+        "depends": ["config"],
+    },
+    "templates_repository": {
+        "class_": "auctions.db.repositories.templates.TemplatesRepository",
+        "depends": ["config"],
+    },
+    "auth_tokens_repository": {
+        "class_": "auctions.db.repositories.users.AuthTokensRepository",
+        "depends": ["config"],
+    },
+    "users_repository": {
+        "class_": "auctions.db.repositories.users.UsersRepository",
+        "depends": ["config"],
+    },
     "auction_set_serializer": {"class_": "auctions.serializers.auction_sets.AuctionSetSerializer"},
     "auction_target_serializer": {"class_": "auctions.serializers.auction_targets.AuctionTargetSerializer"},
     "auction_serializer": {"class_": "auctions.serializers.auctions.AuctionSerializer"},
@@ -147,6 +199,7 @@ DEPENDENCIES: dict[str, DependencyMapType] = {
     "external_token_serializer": {"class_": "auctions.serializers.external.ExternalTokenSerializer"},
     "external_user_serializer": {"class_": "auctions.serializers.users.ExternalUserSerializer"},
     "image_serializer": {"class_": "auctions.serializers.images.ImageSerializer"},
+    "item_counters_serializer": {"class_": "auctions.serializers.items.ItemCountersSerializer"},
     "item_filter_request_serializer": {"class_": "auctions.serializers.items.ItemFilterRequestSerializer"},
     "item_filtered_result_serializer": {"class_": "auctions.serializers.items.ItemFilteredResultSerializer"},
     "item_ids_serializer": {"class_": "auctions.serializers.items.ItemIdsSerializer"},
@@ -177,6 +230,7 @@ ProvideOption = TypeVar(
         "auctions_service",
         "vk_service",
         "vk_callback_service",
+        "vk_notification_service",
         "vk_request_service",
         "password_service",
         "auction_sets_repository",
@@ -205,6 +259,7 @@ ProvideOption = TypeVar(
         "external_entity_serializer",
         "external_token_serializer",
         "image_serializer",
+        "item_counters_serializer",
         "item_filter_request_serializer",
         "item_filtered_result_serializer",
         "item_ids_serializer",
@@ -222,6 +277,9 @@ ProvideOption = TypeVar(
         "vk_callback_message_serializer",
     ],
 )
+
+
+GLOBALS = {}
 
 
 class Provide:
@@ -244,11 +302,14 @@ class DependencyProvider:
         self.cache = {}
         self.resolve_map = {
             "session": self.provide_session,
-            "config": self.provide_config,
         }
         self.teardown_map = {
             "session": self.teardown_session,
         }
+
+    @staticmethod
+    def add_global(name: str, obj: ...) -> None:
+        GLOBALS[name] = (obj, set())
 
     @staticmethod
     def resolve_dependency_list(func: Callable) -> list[tuple[str, str]]:
@@ -260,6 +321,9 @@ class DependencyProvider:
         ]
 
     def provide_dependency(self, name: str, class_name: str, dependencies: list[str]) -> tuple[object, set[str]]:
+        if name in GLOBALS:
+            return GLOBALS[name]
+
         if name in self.cache:
             return self.cache[name]
 
@@ -305,11 +369,6 @@ class DependencyProvider:
     def teardown_session(session: Session) -> None:
         session.commit()
         session.close()
-
-    @staticmethod
-    def provide_config(config: Config) -> Config:
-        config.load("config.yml")
-        return config
 
 
 def inject(func: Callable) -> Callable:

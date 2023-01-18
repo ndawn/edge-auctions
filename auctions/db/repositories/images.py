@@ -16,17 +16,12 @@ class ImagesRepository(Repository[Image]):
         return Image
 
     def delete(self, instances: Union[Image, list[Image]]) -> None:
-        base_dir: Path = current_app.config["config"].BASE_DIR
-
         if not isinstance(instances, list):
             instances = [instances]
 
         for instance in instances:
             for path in instance.urls.values():
                 if path:
-                    (base_dir / path).unlink(missing_ok=True)
-
-        if not base_dir.exists():
-            base_dir.mkdir(exist_ok=True)
+                    path.unlink(missing_ok=True)
 
         super().delete(instances)

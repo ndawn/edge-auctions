@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from typing import Optional
 
 from sqlalchemy.orm.attributes import Mapped
@@ -38,4 +39,4 @@ class AuthToken(db.Model):
     user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"))
     user: Mapped[User] = db.relationship("User", foreign_keys="AuthToken.user_id")
     token: Mapped[str] = db.Column(db.String(64))
-    created_at: Mapped[datetime] = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

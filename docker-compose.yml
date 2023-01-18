@@ -6,11 +6,32 @@ services:
     container_name: edge_auctions_app
     build: .
     restart: always
+    ports:
+      - 1337:1337
+    environment:
+      RUN_MODE: app
+      CONFIG_PATH: ./config/config.yml
     volumes:
-      - ./logs:/logs
-      - ./images:/images
+      - ./logs:/app/logs
+      - ./images:/app/images
+      - ./config:/app/config
     depends_on:
       - db
+      - dramatiq
+    networks:
+      - bridge
+  dramatiq:
+    container_name: edge_auctions_dramatiq
+    build: .
+    restart: always
+    environment:
+      RUN_MODE: worker
+      CONFIG_PATH: ./config/config.yml
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+    depends_on:
+      - redis
     networks:
       - bridge
   db:
@@ -23,26 +44,32 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_HOST: edge_auctions_db
       PGDATA: /db
-    ports:
-      - 5432:5432
     volumes:
       - ./db:/db
     networks:
       - bridge
-  client:
-    container_name: edge_auctions_client
-    build:
-      context: .
-      dockerfile: ./nginx.dockerfile
+  redis:
+    container_name: edge_auctions_redis
+    image: redis:alpine
     restart: always
+    environment:
+      ALLOW_EMPTY_PASSWORD: true
     volumes:
-      - /etc/letsencrypt:/etc/letsencrypt
-      - ./sockets/:/sockets
-      - ./images:/static/dist/images
-    depends_on:
-      - app
+      - ./redis/:/data
     networks:
       - bridge
-    ports:
-      - 80:80
-      - 443:443
+#  client:
+#    container_name: edge_auctions_client
+#    image: app_client
+#    restart: always
+#    volumes:
+#      - /etc/letsencrypt:/etc/letsencrypt
+#      - ./sockets/:/sockets
+#      - ./images:/static/dist/images
+#    depends_on:
+#      - app
+#    networks:
+#      - bridge
+#    ports:
+#      - 80:80
+#      - 443:443

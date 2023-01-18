@@ -1,13 +1,11 @@
 from functools import lru_cache
 from traceback import print_exception
 from typing import TYPE_CHECKING
-from typing import Any
-from typing import Optional
 
 from flask import Request
-from flask import current_app
 from sqlalchemy.exc import InvalidRequestError
 
+from auctions.config import Config
 from auctions.db.models.enum import ExternalSource
 from auctions.db.models.users import AuthToken
 from auctions.db.models.users import User
@@ -34,15 +32,17 @@ class UsersService:
         external_users_repository: "ExternalUsersRepository",
         users_repository: "UsersRepository",
         vk_request_service: "VKRequestService",
+        config: Config,
     ) -> None:
         self.password_service = password_service
         self.auth_tokens_repository = auth_tokens_repository
         self.external_users_repository = external_users_repository
         self.users_repository = users_repository
         self.vk_request_service = vk_request_service
+        self.config = config
 
     @staticmethod
-    def _get_token_from_request(request: Request) -> Optional[str]:
+    def _get_token_from_request(request: Request) -> str | None:
         auth_header_value = request.headers.get("Authorization", "")
 
         if not auth_header_value.lower().startswith("bearer "):
@@ -51,7 +51,7 @@ class UsersService:
         return auth_header_value[7:]
 
     @lru_cache()
-    def get_current_user(self, request: Request) -> Optional[User]:
+    def get_current_user(self, request: Request) -> User | None:
         token = self._get_token_from_request(request)
 
         if token is None:
@@ -86,8 +86,8 @@ class UsersService:
         self.auth_tokens_repository.expire_all(user)
         return self.auth_tokens_repository.generate(user)
 
-    def login_or_create_external(self, query: dict[str, Any]) -> AuthToken:
-        if not self.password_service.verify_vk_signature(query, current_app.config["config"].vk["client_secret"]):
+    def login_or_create_external(self, query: dict[str, ...]) -> AuthToken:
+        if not self.password_service.verify_vk_signature(query, self.config.vk_client_secret):
             raise InvalidSignature()
 
         user_id = query.get("vk_user_id")

@@ -1,9 +1,7 @@
-from typing import Any
-
 from flask import Response
-from flask import current_app
 from sqlalchemy.orm.attributes import flag_modified
 
+from auctions.config import Config
 from auctions.db.models.auction_targets import AuctionTarget
 from auctions.db.models.auctions import Auction
 from auctions.db.models.bidders import Bidder
@@ -38,6 +36,7 @@ class VKCallbackService:
         bidders_repository: BiddersRepository,
         external_entities_repository: ExternalEntitiesRepository,
         external_tokens_repository: ExternalTokensRepository,
+        config: Config,
     ) -> None:
         self.auctions_service = auctions_service
         self.vk_notification_service = vk_notification_service
@@ -47,16 +46,17 @@ class VKCallbackService:
         self.bidders_repository = bidders_repository
         self.external_entities_repository = external_entities_repository
         self.external_tokens_repository = external_tokens_repository
+        self.config = config
 
-    def handle_callback_message(self, args: dict[str, Any]) -> Response:
-        if args['type'] == VKCallbackEventType.SERVER_CONFIRMATION:
+    def handle_callback_message(self, args: dict[str, ...]) -> Response:
+        if args["type"] == VKCallbackEventType.SERVER_CONFIRMATION:
             return Response(self.get_callback_confirmation_code(args))
 
-        if args['type'] == VKCallbackEventType.MESSAGE_EVENT:
+        if args["type"] == VKCallbackEventType.MESSAGE_EVENT:
             self.process_message_event(args)
-        elif args['type'] == VKCallbackEventType.MESSAGE_NEW:
+        elif args["type"] == VKCallbackEventType.MESSAGE_NEW:
             self.process_message(args)
-        elif args['type'] in (
+        elif args["type"] in (
             VKCallbackEventType.PHOTO_COMMENT_NEW,
             VKCallbackEventType.PHOTO_COMMENT_EDIT,
             VKCallbackEventType.PHOTO_COMMENT_DELETE,
@@ -66,14 +66,14 @@ class VKCallbackService:
 
         return Response('ok')
 
-    def get_callback_confirmation_code(self, args: dict[str, Any]) -> str:
-        return self.vk_request_service.get_callback_confirmation_code(args['group_id'])
+    def get_callback_confirmation_code(self, args: dict[str, ...]) -> str:
+        return self.vk_request_service.get_callback_confirmation_code(args["group_id"])
 
-    def process_message_event(self, args: dict[str, Any]) -> None:
-        event = args['object']
+    def process_message_event(self, args: dict[str, ...]) -> None:
+        event = args["object"]
 
-        command = event.get('payload', {}).get('command')
-        action = event.get('payload', {}).get('action', {}).get('type')
+        command = event.get("payload", {}).get("command")
+        action = event.get("payload", {}).get("action", {}).get("type")
 
         if command != VKCallbackMessageEventCommandType.INTERNAL_COMMAND.value:
             return
@@ -83,9 +83,9 @@ class VKCallbackService:
         elif action == VKCallbackMessageEventPayloadActionType.INTENT_UNSUBSCRIBE.value:
             self.process_intent_unsubscribe(args)
 
-    def process_message(self, args: dict[str, Any]) -> None:
-        message = args.get('message', {})
-        message_text = message.get('text', '').lower().strip()
+    def process_message(self, args: dict[str, ...]) -> None:
+        message = args.get("message", {})
+        message_text = message.get("text", "").lower().strip()
 
         if (
             message_text
@@ -93,14 +93,14 @@ class VKCallbackService:
                 text_constants.INTENT_SUBSCRIBE_REQUEST.lower(),
                 text_constants.INTENT_UNSUBSCRIBE_REQUEST.lower(),
             )
-            and message.get('payload') is not None
+            and message.get("payload") is not None
         ):
             self.process_message_event(
                 {
-                    'group_id': args['group_id'],
-                    'user_id': message.get('from_id'),
-                    'peer_id': message.get('from_id'),
-                    'payload': message.get('payload'),
+                    "group_id": args["group_id"],
+                    "user_id": message.get("from_id"),
+                    "peer_id": message.get("from_id"),
+                    "payload": message.get("payload"),
                 }
             )
             return
@@ -117,20 +117,20 @@ class VKCallbackService:
             return
 
         self.vk_request_service.send_message(
-            group_id=args['group_id'],
-            user_id=message.get('from_id'),
+            group_id=args["group_id"],
+            user_id=message.get("from_id"),
             message=text,
             keyboard={
-                'one_time': True,
-                'buttons': [
+                "one_time": True,
+                "buttons": [
                     [
                         {
-                            'action': {
-                                'type': button_action_type,
-                                'label': button_label,
-                                'peer_id': message.get('from_id'),
-                                'intent': VKIntentType.CONFIRMED_NOTIFICATION.value,
-                                'subscribe_id': current_app.config['config'].vk['subscribe_id'],
+                            "action": {
+                                "type": button_action_type,
+                                "label": button_label,
+                                "peer_id": message.get("from_id"),
+                                "intent": VKIntentType.CONFIRMED_NOTIFICATION.value,
+                                "subscribe_id": self.config.vk_subscribe_id,
                             },
                         }
                     ]
@@ -138,13 +138,13 @@ class VKCallbackService:
             },
         )
 
-    def process_photo_comment(self, args: dict[str, Any]) -> None:
-        comment = args['object']
-        group_id = args['group_id']
-        photo_id = comment.get('photo_id')
-        comment_id = comment.get('id')
-        from_id = comment.get('from_id')
-        comment_text = comment.get('text', '').strip().capitalize()
+    def process_photo_comment(self, args: dict[str, ...]) -> None:
+        comment = args["object"]
+        group_id = args["group_id"]
+        photo_id = comment.get("photo_id")
+        comment_id = comment.get("id")
+        from_id = comment.get("from_id")
+        comment_text = comment.get("text", "").strip().capitalize()
 
         if from_id == -group_id:
             return
@@ -186,60 +186,60 @@ class VKCallbackService:
 
         self.vk_notification_service.notify_bid_beaten(bid, bid.auction.get_last_bid())
 
-        if not external_bidder.extra.get('is_subscribed', False):
+        if not external_bidder.extra.get("is_subscribed", False):
             self.vk_notification_service.notify_bidder_not_registered(bid)
 
-    def process_intent_subscribe(self, args: dict[str, Any]) -> None:
-        event = args['object']
+    def process_intent_subscribe(self, args: dict[str, ...]) -> None:
+        event = args["object"]
 
         try:
-            user = self.external_entities_repository.get_one(ExternalEntity.entity_id == str(event['user_id']))
+            user = self.external_entities_repository.get_one(ExternalEntity.entity_id == str(event["user_id"]))
             external_user = user.get_external(ExternalSource.VK)
         except ObjectDoesNotExist:
             target = self.auction_targets_repository.get_one(
-                AuctionTarget.external.any(entity_id=str(args['group_id']))
+                AuctionTarget.external.any(entity_id=str(args["group_id"]))
             )
 
-            external_user_data = self.vk_request_service.get_user(args['group_id'], event['user_id'])
+            external_user_data = self.vk_request_service.get_user(args["group_id"], event["user_id"])
 
             user = self.bidders_repository.create(
                 target=target,
-                first_name=external_user_data['first_name'],
-                last_name=external_user_data['last_name'],
-                avatar=external_user_data['photo_50'],
+                first_name=external_user_data["first_name"],
+                last_name=external_user_data["last_name"],
+                avatar=external_user_data["photo_50"],
             )
             external_user = self.external_entities_repository.create(
                 source=ExternalSource.VK,
-                entity_id=str(event['user_id']),
+                entity_id=str(event["user_id"]),
             )
 
             self.bidders_repository.add_external(user, external_user)
 
-        if external_user.extra.get('is_subscribed', False):
+        if external_user.extra.get("is_subscribed", False):
             return self._send_intent_event_answer(args, text_constants.INTENT_SUBSCRIBED_ALREADY)
 
-        external_user.extra['is_subscribed'] = True
-        flag_modified(external_user, 'extra')
+        external_user.extra["is_subscribed"] = True
+        flag_modified(external_user, "extra")
         return self._send_intent_event_answer(args, text_constants.INTENT_SUBSCRIBED)
 
-    def process_intent_unsubscribe(self, args: dict[str, Any]) -> None:
-        event = args['object']
+    def process_intent_unsubscribe(self, args: dict[str, ...]) -> None:
+        event = args["object"]
 
         try:
-            user = self.external_entities_repository.get_one(ExternalEntity.entity_id == str(event['user_id']))
+            user = self.external_entities_repository.get_one(ExternalEntity.entity_id == str(event["user_id"]))
             external_user = user.get_external(ExternalSource.VK)
         except ObjectDoesNotExist:
             return
 
-        if not external_user.extra.get('is_subscribed', False):
+        if not external_user.extra.get("is_subscribed", False):
             self._send_intent_event_answer(args, text_constants.INTENT_UNSUBSCRIBED_ALREADY)
             return
 
-        external_user.extra['is_subscribed'] = False
-        flag_modified(external_user, 'extra')
+        external_user.extra["is_subscribed"] = False
+        flag_modified(external_user, "extra")
         self._send_intent_event_answer(args, text_constants.INTENT_UNSUBSCRIBED)
 
-    def _send_intent_event_answer(self, args: dict[str, Any], text: str) -> None:
+    def _send_intent_event_answer(self, args: dict[str, ...], text: str) -> None:
         event = args["object"]
 
         if text in (
@@ -266,7 +266,7 @@ class VKCallbackService:
                                 "label": label,
                                 "peer_id": event["user_id"],
                                 "intent": VKIntentType.CONFIRMED_NOTIFICATION.value,
-                                "subscribe_id": current_app.config["config"].vk["subscribe_id"],
+                                "subscribe_id": self.config.vk_subscribe_id,
                             },
                         }
                     ]
@@ -288,9 +288,9 @@ class VKCallbackService:
 
         user = self.bidders_repository.create(
             target=target,
-            first_name=external_user_data['first_name'],
-            last_name=external_user_data['last_name'],
-            avatar=external_user_data['photo_50'],
+            first_name=external_user_data["first_name"],
+            last_name=external_user_data["last_name"],
+            avatar=external_user_data["photo_50"],
         )
         external_user = self.external_entities_repository.create(
             source=ExternalSource.VK,

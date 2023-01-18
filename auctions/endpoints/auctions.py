@@ -18,7 +18,7 @@ blueprint = create_crud_blueprint(
     model=Auction,
     serializer_name="auction_serializer",
     operations=("read",),
-    protected=tuple(),
+    protected=(),
 )
 
 

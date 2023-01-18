@@ -4,9 +4,9 @@ from typing import Any
 from typing import Optional
 
 import requests
-from flask import current_app
 from vk.session import API
 
+from auctions.config import Config
 from auctions.db.models.enum import ExternalTokenType
 from auctions.db.models.enum import VKIntentType
 from auctions.db.repositories.external import ExternalTokensRepository
@@ -14,8 +14,9 @@ from auctions.utils.use_token import use_token
 
 
 class VKRequestService:
-    def __init__(self, external_tokens_repository: ExternalTokensRepository) -> None:
+    def __init__(self, external_tokens_repository: ExternalTokensRepository, config: Config) -> None:
         self.external_tokens_repository = external_tokens_repository
+        self.config = config
 
     @use_token(ExternalTokenType.VK_GROUP)
     def get_callback_confirmation_code(self, group_id: int, *, token_type: ExternalTokenType) -> str:
@@ -23,7 +24,7 @@ class VKRequestService:
         self.external_tokens_repository.wait_unblock(token)
         result = API(
             access_token=token.token,
-            v=current_app.config["config"].vk["v"],
+            v=self.config.vk_api_version,
         ).groups.getCallbackConfirmationCode(group_id=group_id)
         return result["code"]
 
@@ -50,13 +51,13 @@ class VKRequestService:
         self.external_tokens_repository.wait_unblock(token)
         result = API(
             access_token=token.token,
-            v=current_app.config["config"].vk["v"],
+            v=self.config.vk_api_version,
         ).photos.createAlbum(**params)
 
         album_id = result["id"]
 
         self.external_tokens_repository.wait_unblock(token)
-        result = API(access_token=token.token, v=current_app.config["config"].vk["v"]).photos.getUploadServer(
+        result = API(access_token=token.token, v=self.config.vk_api_version).photos.getUploadServer(
             group_id=group_id,
             album_id=album_id,
         )
@@ -91,7 +92,7 @@ class VKRequestService:
             params["caption"] = description
 
         self.external_tokens_repository.wait_unblock(token)
-        result = API(access_token=token.token, v=current_app.config["config"].vk["v"]).photos.save(**params)
+        result = API(access_token=token.token, v=self.config.vk_api_version).photos.save(**params)
 
         return result[0]["id"]
 
@@ -108,7 +109,7 @@ class VKRequestService:
     ) -> None:
         token = self.external_tokens_repository.get_token(str(group_id), token_type)
         self.external_tokens_repository.wait_unblock(token)
-        API(access_token=token.token, v=current_app.config["config"].vk["v"]).photos.createComment(
+        API(access_token=token.token, v=self.config.vk_api_version).photos.createComment(
             owner_id=-group_id,
             photo_id=photo_id,
             message=message,
@@ -127,7 +128,7 @@ class VKRequestService:
     ) -> None:
         token = self.external_tokens_repository.get_token(str(group_id), token_type)
         self.external_tokens_repository.wait_unblock(token)
-        API(access_token=token.token, v=current_app.config["config"].vk["v"]).photos.deleteComment(
+        API(access_token=token.token, v=self.config.vk_api_version).photos.deleteComment(
             owner_id=-group_id,
             comment_id=comment_id,
         )
@@ -161,7 +162,7 @@ class VKRequestService:
             params["keyboard"] = keyboard
 
         self.external_tokens_repository.wait_unblock(token)
-        API(access_token=token.token, v=current_app.config["config"].vk["v"]).messages.send(**params)
+        API(access_token=token.token, v=self.config.vk_api_version).messages.send(**params)
 
     @use_token(ExternalTokenType.VK_SERVICE)
     def get_user(self, app_id: int, user_id: int, *, token_type: ExternalTokenType) -> dict[str, Any]:
@@ -169,7 +170,7 @@ class VKRequestService:
         # self.external_tokens_repository.wait_unblock(token)
         result = API(
             access_token=token.token,
-            v=current_app.config["config"].vk["v"],
+            v=self.config.vk_api_version,
         ).users.get(user_ids=user_id, fields="photo_50")
         return result[0]
 
@@ -183,9 +184,9 @@ class VKRequestService:
 
         while True:
             self.external_tokens_repository.wait_unblock(token)
-            result = API(access_token=token.token, v=current_app.config["config"].vk["v"]).messages.getIntentUsers(
+            result = API(access_token=token.token, v=self.config.vk_api_version).messages.getIntentUsers(
                 intent=intent.value,
-                subscribe_id=current_app.config["config"].vk["subscribe_id"],
+                subscribe_id=self.config.vk_subscribe_id,
                 count=page_size,
                 offset=page * page_size,
             )

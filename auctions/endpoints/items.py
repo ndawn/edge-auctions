@@ -7,6 +7,7 @@ from auctions.dependencies import inject
 from auctions.dependencies import Provide
 from auctions.endpoints.crud import create_crud_blueprint
 from auctions.serializers.delete_object import DeleteObjectSerializer
+from auctions.serializers.items import ItemCountersSerializer
 from auctions.serializers.items import ItemFilterRequestSerializer
 from auctions.serializers.items import ItemIdsSerializer
 from auctions.serializers.items import ItemSerializer
@@ -40,6 +41,58 @@ def list_items(
     args = parser.parse(item_filter_request_serializer, request, location="query")
     result = items_service.list_items(args)
     return JsonResponse(item_serializer.dump(result, many=True))
+
+
+@blueprint.get("/counters")
+@with_error_handler
+@login_required()
+@inject
+def get_item_counters(
+    items_service: ItemsService = Provide["items_service"],
+    item_counters_serializer: ItemCountersSerializer = Provide["item_counters_serializer"],
+) -> JsonResponse:
+    result = items_service.get_counters()
+    return JsonResponse(item_counters_serializer.dump({"counters": result}))
+
+
+@blueprint.post("/random_set")
+@with_error_handler
+@login_required()
+@inject
+def get_random_item_set_for_auction(
+    items_service: ItemsService = Provide["items_service"],
+    item_serializer: ItemSerializer = Provide["item_serializer"],
+) -> JsonResponse:
+    args = parser.parse({
+        "amounts": fields.Dict(
+            keys=fields.Int(),
+            values=fields.Dict(keys=fields.Int(), values=fields.Int()),
+            required=True,
+        )
+    }, request)
+    result = items_service.get_random_set(args["amounts"])
+    return JsonResponse(item_serializer.dump(result, many=True))
+
+
+@blueprint.post("/random_auction")
+@with_error_handler
+@login_required()
+@inject
+def get_random_item_for_auction(
+    items_service: ItemsService = Provide["items_service"],
+    item_serializer: ItemSerializer = Provide["item_serializer"],
+) -> JsonResponse:
+    args = parser.parse({
+        "item_type_id": fields.Int(data_key="itemTypeId"),
+        "price_category_id": fields.Int(data_key="priceCategoryId"),
+        "exclude_ids": fields.List(fields.Int(), data_key="excludeIds"),
+    }, request)
+    result = items_service.get_random_item_for_auction(
+        args["item_type_id"],
+        args["price_category_id"],
+        args["exclude_ids"],
+    )
+    return JsonResponse(item_serializer.dump(result) if result is not None else None)
 
 
 @blueprint.put("/<int:id_>")

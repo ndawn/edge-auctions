@@ -80,3 +80,20 @@ class ItemJoinData(BaseSerializer):
     item_to_drop_id = fields.Int(load_only=True, required=True, data_key="itemToDropId")
     image_ids = fields.List(fields.Int(), load_only=True, required=True, data_key="imageIds")
     main_image_id = fields.Int(load_only=True, required=True, data_key="mainImageId")
+
+
+class PriceCategoryCountersSerializer(BaseSerializer):
+    price_category = fields.Nested(
+        "PriceCategorySerializer",
+        data_key="priceCategory",
+    )
+    count = fields.Int()
+
+
+class ItemTypeCountersSerializer(BaseSerializer):
+    item_type = fields.Nested("ItemTypeSerializer", data_key="itemType")
+    prices = fields.Nested(PriceCategoryCountersSerializer(many=True))
+
+
+class ItemCountersSerializer(BaseSerializer):
+    counters = fields.Nested(ItemTypeCountersSerializer(many=True))

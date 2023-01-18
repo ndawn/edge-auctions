@@ -2,8 +2,7 @@ import random
 from datetime import timezone
 from zoneinfo import ZoneInfo
 
-from flask import current_app
-
+from auctions.config import Config
 from auctions.db.models.auctions import Auction
 from auctions.db.models.bidders import Bidder
 from auctions.db.models.bids import Bid
@@ -15,10 +14,9 @@ from auctions.utils.misc import winner_message
 
 
 class VKNotificationService:
-    def __init__(self, vk_request_service: VKRequestService) -> None:
+    def __init__(self, vk_request_service: VKRequestService, config: Config) -> None:
         self.vk_request_service = vk_request_service
-
-        self.default_timezone = current_app.config["config"].default_timezone
+        self.config = config
 
     def notify_winners(self, winners: dict[Bidder, list[Auction]]) -> None:
         for bidder, auctions in winners.items():
@@ -65,7 +63,9 @@ class VKNotificationService:
         if bid.is_buyout:
             message = text_constants.BOUGHT_OUT
         elif bid.is_sniped:
-            date_due = bid.auction.date_due.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(self.default_timezone))
+            date_due = bid.auction.date_due.replace(tzinfo=timezone.utc).astimezone(
+                ZoneInfo(self.config.default_timezone)
+            )
             message = text_constants.BID_SNIPED % date_due.strftime("%H:%M")
 
         return self._send_reply(beaten_bid, message)

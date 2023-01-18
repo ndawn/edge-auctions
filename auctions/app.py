@@ -1,27 +1,27 @@
-from argon2 import PasswordHasher
+import os
+import subprocess
+import sys
+
+from dramatiq import set_broker
 from flask import Flask
 from flask import jsonify
 
 from auctions.config import Config
-from auctions.db import db
+from auctions.dependencies import DependencyProvider
 from auctions.endpoints import root_blueprint
-from auctions.tasks import celery
+from auctions.tasks import create_broker
+from auctions.utils.app import create_base_app
 from uvicorn_config import run_configured
 
 from flask_cors import CORS
 
 
-def create_app() -> Flask:
-    app = Flask(__name__)
-    config = Config()
-    config.load("config.yml")
-    app.config["config"] = config
-    app.config["SQLALCHEMY_DATABASE_URI"] = config.db_url
-    app.config["SQLALCHEMY_ECHO"] = config.debug
-    app.config["PASSWORD_HASHER"] = PasswordHasher()
-    db.init_app(app)
+def create_app(config: Config) -> Flask:
+    app = create_base_app(config)
+    broker = create_broker(config)
+    set_broker(broker)
 
-    celery.config_from_object(config.celery)
+    DependencyProvider.add_global("config", config)
 
     @app.errorhandler(422)
     @app.errorhandler(405)
@@ -47,16 +47,39 @@ def create_app() -> Flask:
     return app
 
 
-app = create_app()
+def run_app(config: Config) -> None:
+    app = create_app(config)
 
-
-if __name__ == "__main__":
-    if app.config["config"].debug:
+    if config.debug:
         CORS(app)
         app.run(
-            debug=app.config["config"].debug,
+            debug=config.debug,
             host="0.0.0.0",
-            ssl_context=("C:\\Users\\burmi\\localhost+2.pem", "C:\\Users\\burmi\\localhost+2-key.pem"),
+            ssl_context=(config.local_cert_path, config.local_cert_key_path),
         )
     else:
         run_configured(app)
+
+
+def run_worker(config: Config) -> None:
+    result = subprocess.run([
+        "dramatiq",
+        "--log-file",
+        str(config.tasks_log_path),
+        "auctions.tasks",
+    ])
+    sys.exit(result.returncode)
+
+
+def main() -> None:
+    run_mode = os.getenv("RUN_MODE", "")
+    config = Config.load(os.getenv("CONFIG_PATH", ""))
+
+    {
+        "app": run_app,
+        "worker": run_worker,
+    }.get(run_mode, lambda _: print(f"Unrecognized run mode: {run_mode}"))(config)
+
+
+if __name__ == "__main__":
+    main()

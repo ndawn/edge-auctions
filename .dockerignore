@@ -1,3 +1,6 @@
+./build
+./config
 ./db
 ./logs
+./redis
 ./sockets
