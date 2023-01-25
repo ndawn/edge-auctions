@@ -15,7 +15,6 @@ from flask import Flask
 
 from auctions.config import Config
 from auctions.dependencies import DependencyProvider
-from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.exceptions import AuctionReschedule
 from auctions.services.auctions_service import AuctionsService
@@ -46,11 +45,9 @@ def with_app_context(app: Flask) -> callable:
 
     return decorator
 
+
 @inject
-def close_auction(
-    auction_id: int,
-    auctions_service: AuctionsService = Provide["auctions_service"],
-) -> str:
+def close_auction(auction_id: int, auctions_service: AuctionsService) -> str:
     try:
         auction = auctions_service.close_auction(auction_id)
         return str(auction.ended_at)
@@ -62,10 +59,7 @@ def close_auction(
 
 
 @inject
-def close_auction_set(
-    set_id: int,
-    auctions_service: AuctionsService = Provide["auctions_service"],
-) -> str:
+def close_auction_set(set_id: int, auctions_service: AuctionsService) -> str:
     try:
         auction_set = auctions_service.close_auction_set(set_id)
         return str(auction_set.ended_at)

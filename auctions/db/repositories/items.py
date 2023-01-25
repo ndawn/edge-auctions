@@ -1,17 +1,14 @@
-from typing import Type
-from typing import Union
-
 from sqlalchemy import func
 from sqlalchemy import select
-from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.elements import True_
 from sqlalchemy.sql.selectable import FromClause
 
 from auctions.db.models.auctions import Auction
 from auctions.db.models.items import Item
 from auctions.db.repositories.base import Repository
+from auctions.dependencies import injectable
 
 
+@injectable
 class ItemsRepository(Repository[Item]):
     joined_fields = (
         Item.wrap_to,
@@ -22,7 +19,7 @@ class ItemsRepository(Repository[Item]):
     )
 
     @property
-    def model(self) -> Type[Item]:
+    def model(self) -> type[Item]:
         return Item
 
     def _apply_joined_fields(self, select_statement: FromClause) -> FromClause:

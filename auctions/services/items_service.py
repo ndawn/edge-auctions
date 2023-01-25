@@ -1,13 +1,14 @@
 from collections import defaultdict
-from typing import Any
 
 from auctions.config import Config
 from auctions.db.models.enum import SupplyItemParseStatus
 from auctions.db.models.items import Item
 from auctions.db.repositories.items import ItemsRepository
 from auctions.db.repositories.item_types import ItemTypesRepository
+from auctions.dependencies import injectable
 
 
+@injectable
 class ItemsService:
     def __init__(
         self,
@@ -19,7 +20,7 @@ class ItemsService:
         self.item_types_repository = item_types_repository
         self.config = config
 
-    def list_items(self, filters: dict[str, Any]) -> list[Item]:
+    def list_items(self, filters: dict[str, ...]) -> list[Item]:
         filter_predicate = (Item.auction == None) & (Item.session == None)
 
         item_type_id = filters.get("item_type_id")
@@ -35,7 +36,7 @@ class ItemsService:
 
         return self.items_repository.get_many(filter_predicate, page=page, page_size=page_size)
 
-    def get_counters(self) -> list[dict[str, Any]]:
+    def get_counters(self) -> list[dict[str, ...]]:
         item_types = self.item_types_repository.get_many(with_pagination=False)
 
         counters = []
@@ -79,7 +80,7 @@ class ItemsService:
     ) -> Item | None:
         return self.items_repository.get_random_one(item_type_id, price_category_id, exclude_ids)
 
-    def update_item(self, id_: int, data: dict[str, Any]) -> Item:
+    def update_item(self, id_: int, data: dict[str, ...]) -> Item:
         item = self.items_repository.get_one_by_id(id_)
 
         item_mandatory_fields = {

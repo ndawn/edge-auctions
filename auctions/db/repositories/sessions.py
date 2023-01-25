@@ -1,11 +1,10 @@
-from typing import Optional
-from typing import Type
-
 from auctions.db.models.items import Item
 from auctions.db.models.sessions import SupplySession
 from auctions.db.repositories.base import Repository
+from auctions.dependencies import injectable
 
 
+@injectable
 class SupplySessionsRepository(Repository[SupplySession]):
     joined_fields = (
         SupplySession.item_type,
@@ -16,8 +15,8 @@ class SupplySessionsRepository(Repository[SupplySession]):
     )
 
     @property
-    def model(self) -> Type[SupplySession]:
+    def model(self) -> type[SupplySession]:
         return SupplySession
 
-    def get_current_session(self) -> Optional[SupplySession]:
+    def get_current_session(self) -> SupplySession | None:
         return self.get_one()

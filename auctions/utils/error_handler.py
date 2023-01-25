@@ -1,7 +1,5 @@
 from functools import wraps
 from traceback import print_exception
-from typing import Callable
-from typing import Union
 
 from marshmallow.exceptions import ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import UnprocessableEntity
@@ -14,7 +12,7 @@ from auctions.serializers.exceptions import ExceptionSerializer
 from auctions.utils.response import JsonResponse
 
 
-def convert_validation_error(exception: Union[MarshmallowValidationError, UnprocessableEntity]) -> ValidationError:
+def convert_validation_error(exception: MarshmallowValidationError | UnprocessableEntity) -> ValidationError:
     if isinstance(exception, UnprocessableEntity):
         exception = exception.exc
     return ValidationError(
@@ -25,9 +23,9 @@ def convert_validation_error(exception: Union[MarshmallowValidationError, Unproc
 
 @inject
 def with_error_handler(
-    func: Callable,
-    exception_serialzer: ExceptionSerializer = Provide["exception_serializer"],
-) -> Callable:
+    func: callable,
+    exception_serialzer: ExceptionSerializer = Provide(),
+) -> callable:
     @wraps(func)
     def decorated(*args, **kwargs):
         try:
@@ -36,7 +34,6 @@ def with_error_handler(
             return JsonResponse(exception_serialzer.dump(exception), status=exception.status_code)
         except (MarshmallowValidationError, UnprocessableEntity) as exception:
             exception = convert_validation_error(exception)
-            print(exception.extra)
             print_exception(exception.__class__, exception, exception.__traceback__)
             return JsonResponse(exception_serialzer.dump(exception), status=exception.status_code)
         except Exception as exception:

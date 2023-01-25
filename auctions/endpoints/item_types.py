@@ -6,7 +6,7 @@ from auctions.serializers.item_types import ItemTypeSerializer
 
 blueprint = create_crud_blueprint(
     model=ItemType,
-    serializer_name="item_type_serializer",
+    serializer_class=ItemTypeSerializer,
     list_args={
         "page": fields.Int(required=False, default=0),
         "page_size": fields.Int(required=False, default=10),

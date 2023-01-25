@@ -1,16 +1,21 @@
 from base64 import b64encode
+from hashlib import md5
 from hashlib import sha256
 from hmac import HMAC
-from typing import Any
 from urllib.parse import urlencode
 
+from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from flask import current_app
+
+from auctions.config import Config
+from auctions.dependencies import injectable
 
 
+@injectable
 class PasswordService:
-    def __init__(self):
-        self.hasher = current_app.config["PASSWORD_HASHER"]
+    def __init__(self, password_hasher: PasswordHasher, config: Config) -> None:
+        self.hasher = password_hasher
+        self.config = config
 
     def check_password(self, password: str, hashed_password: str) -> bool:
         try:
@@ -18,11 +23,15 @@ class PasswordService:
         except VerifyMismatchError:
             return False
 
+    def generate_shop_password(self, token: str) -> str:
+        sequence = (self.config.shop_secret + token).encode("utf-8")
+        return md5(sequence).hexdigest()
+
     def hash_password(self, password: str) -> str:
         return self.hasher.hash(password)
 
     @staticmethod
-    def verify_vk_signature(query: dict[str, Any], client_secret: str) -> bool:
+    def verify_vk_signature(query: dict[str, ...], client_secret: str) -> bool:
         if not query.get("sign"):
             return False
 

@@ -1,7 +1,10 @@
 from marshmallow import Schema
 from marshmallow import fields
 
+from auctions.dependencies import injectable
 
+
+@injectable
 class ExceptionSerializer(Schema):
     error = fields.Method("get_error_name")
     message = fields.Method("get_error_message")

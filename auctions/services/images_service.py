@@ -1,7 +1,6 @@
 from mimetypes import guess_extension
 from mimetypes import guess_type
 from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 import pyvips
@@ -14,8 +13,10 @@ from auctions.config import Config
 from auctions.db.models.images import Image
 from auctions.db.models.items import Item
 from auctions.db.repositories.images import ImagesRepository
+from auctions.dependencies import injectable
 
 
+@injectable
 class ImagesService:
     def __init__(self, images_repository: ImagesRepository, config: Config) -> None:
         self.images_repository = images_repository
@@ -93,7 +94,7 @@ class ImagesService:
         thumb.write_to_file(str(target_path))
 
     @staticmethod
-    def scan_barcode(image: Image) -> tuple[Optional[str], Optional[str]]:
+    def scan_barcode(image: Image) -> tuple[str | None, str | None]:
         pillow_image = PillowImage.open(image.urls["full"])
 
         codes = decode(pillow_image, symbols=[ZBarSymbol.EAN13, ZBarSymbol.EAN5, ZBarSymbol.UPCA])

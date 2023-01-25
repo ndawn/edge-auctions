@@ -16,7 +16,7 @@ class ItemType(db.Model):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
-    price_category_id: Mapped[Optional[int]] = db.Column(
+    price_category_id: Mapped[int | None] = db.Column(
         db.Integer,
         db.ForeignKey("price_categories.id"),
         nullable=True,
@@ -25,7 +25,7 @@ class ItemType(db.Model):
         "PriceCategory",
         foreign_keys="ItemType.price_category_id",
     )
-    wrap_to_id: Mapped[Optional[int]] = db.Column(db.Integer, db.ForeignKey("templates.id"), nullable=True)
+    wrap_to_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("templates.id"), nullable=True)
     wrap_to: Mapped[Optional["Template"]] = db.relationship("Template", foreign_keys="ItemType.wrap_to_id")
 
     items: Mapped[list["Item"]] = db.relationship("Item", back_populates="type")

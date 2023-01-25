@@ -3,12 +3,11 @@ from zoneinfo import ZoneInfo
 
 from auctions.config import Config
 from auctions.db.models.auctions import Auction
-from auctions.dependencies import Provide
 from auctions.dependencies import inject
 
 
 @inject
-def get_default_timezone(config: Config = Provide["config"]) -> str:
+def get_default_timezone(config: Config) -> str:
     return config.default_timezone
 
 

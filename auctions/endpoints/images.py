@@ -3,18 +3,17 @@ from webargs import fields
 from webargs.flaskparser import parser
 
 from auctions.db.models.images import Image
-from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.endpoints.crud import create_crud_blueprint
 from auctions.serializers.images import ImageSerializer
 from auctions.services.images_service import ImagesService
 from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import login_required
+from auctions.utils.login import require_auth
 from auctions.utils.response import JsonResponse
 
 blueprint = create_crud_blueprint(
     model=Image,
-    serializer_name="image_serializer",
+    serializer_class=ImageSerializer,
     list_args={
         "page": fields.Int(required=False, default=0),
         "page_size": fields.Int(required=False, default=50),
@@ -27,11 +26,11 @@ blueprint = create_crud_blueprint(
 
 @blueprint.post("/bulk_create")
 @with_error_handler
-@login_required()
+@require_auth(None)
 @inject
 def bulk_create(
-    images_service: ImagesService = Provide["images_service"],
-    image_serializer: ImageSerializer = Provide["image_serializer"],
+    images_service: ImagesService,
+    image_serializer: ImageSerializer,
 ) -> JsonResponse:
     args = parser.parse(
         {

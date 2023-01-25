@@ -6,7 +6,7 @@ from auctions.serializers.price_categories import PriceCategorySerializer
 
 blueprint = create_crud_blueprint(
     model=PriceCategory,
-    serializer_name="price_category_serializer",
+    serializer_class=PriceCategorySerializer,
     list_args={
         "page": fields.Int(required=False, default=0),
         "page_size": fields.Int(required=False, default=10),

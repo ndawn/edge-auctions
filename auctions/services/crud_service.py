@@ -1,22 +1,15 @@
 from copy import deepcopy
-from typing import Any
 from typing import Iterable
-from typing import Type
-from typing import Union
 
 from sqlalchemy import true
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.elements import BooleanClauseList
 
 from auctions.db.repositories.auction_sets import AuctionSetsRepository
-from auctions.db.repositories.auction_targets import AuctionTargetsRepository
 from auctions.db.repositories.auctions import AuctionsRepository
 from auctions.db.repositories.base import Model
 from auctions.db.repositories.base import Repository
-from auctions.db.repositories.bidders import BiddersRepository
 from auctions.db.repositories.bids import BidsRepository
-from auctions.db.repositories.external import ExternalEntitiesRepository
-from auctions.db.repositories.external import ExternalTokensRepository
 from auctions.db.repositories.images import ImagesRepository
 from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.items import ItemsRepository
@@ -24,13 +17,14 @@ from auctions.db.repositories.price_categories import PriceCategoriesRepository
 from auctions.db.repositories.sessions import SupplySessionsRepository
 from auctions.db.repositories.templates import TemplatesRepository
 from auctions.db.repositories.users import AuthTokensRepository
-from auctions.db.repositories.users import ExternalUsersRepository
 from auctions.db.repositories.users import UsersRepository
+from auctions.dependencies import injectable
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import HTTPError
 from auctions.exceptions import ObjectDoesNotExist
 
 
+@injectable
 class CRUDServiceProvider:
     __instance = None
 
@@ -43,13 +37,8 @@ class CRUDServiceProvider:
     def __init__(
         self,
         auction_sets_repository: AuctionSetsRepository,
-        auction_targets_repository: AuctionTargetsRepository,
         auctions_repository: AuctionsRepository,
-        bidders_repository: BiddersRepository,
         bids_repository: BidsRepository,
-        external_entities_repository: ExternalEntitiesRepository,
-        external_tokens_repository: ExternalTokensRepository,
-        external_users_repository: ExternalUsersRepository,
         images_repository: ImagesRepository,
         item_types_repository: ItemTypesRepository,
         items_repository: ItemsRepository,
@@ -62,13 +51,8 @@ class CRUDServiceProvider:
         self.cache = {}
         self.repositories = [
             auction_sets_repository,
-            auction_targets_repository,
             auctions_repository,
-            bidders_repository,
             bids_repository,
-            external_entities_repository,
-            external_tokens_repository,
-            external_users_repository,
             images_repository,
             item_types_repository,
             items_repository,
@@ -79,13 +63,13 @@ class CRUDServiceProvider:
             users_repository,
         ]
 
-    def __call__(self, model: Type[Model]) -> "CRUDService":
+    def __call__(self, model: type[Model]) -> "CRUDService":
         if model not in self.cache:
             self.cache[model] = CRUDService(self.get_repository(model), self)
 
         return self.cache[model]
 
-    def get_repository(self, model: Type[Model]) -> Repository:
+    def get_repository(self, model: type[Model]) -> Repository:
         for repository in self.repositories:
             if repository.model is model:
                 return repository
@@ -94,7 +78,7 @@ class CRUDServiceProvider:
 
 
 class CRUDService:
-    model: Type[Model]
+    model: type[Model]
     repository: Repository
 
     def __init__(self, repository: Repository, provider: CRUDServiceProvider) -> None:
@@ -121,7 +105,7 @@ class CRUDService:
         self.repository.update(instance, **kwargs)
         return instance
 
-    def delete(self, id_: Union[int, Iterable[int]]) -> None:
+    def delete(self, id_: int | Iterable[int]) -> None:
         if isinstance(id_, int):
             ids = [id_]
         else:
@@ -145,7 +129,7 @@ class CRUDService:
             and field.property.columns[0].foreign_keys
         }
 
-    def _find_related_model_by_foreign_key_name(self, key: str) -> tuple[Type[Model], str]:
+    def _find_related_model_by_foreign_key_name(self, key: str) -> tuple[type[Model], str]:
         relationship_key = None
         model = None
 
@@ -166,7 +150,7 @@ class CRUDService:
 
         return model, relationship_key
 
-    def _update_with_related_objects(self, data: dict[str, Any]) -> dict[str, Model]:
+    def _update_with_related_objects(self, data: dict[str, ...]) -> dict[str, Model]:
         result = deepcopy(data)
 
         foreign_key_fields = self._get_foreign_key_fields()

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from marshmallow import fields
 
 from auctions.db.models.enum import SupplyItemParseStatus
+from auctions.dependencies import injectable
 from auctions.serializers.base import BaseSerializer
 from auctions.utils.json_field import JSONField
 
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
     from auctions.db.models.items import Item
 
 
+@injectable
 class ItemParseDataSerializer(BaseSerializer):
     description = fields.Str(required=False, allow_none=True, allow_blank=True)
     publisher = fields.Str(required=False, allow_none=True, allow_blank=True)
@@ -19,6 +21,7 @@ class ItemParseDataSerializer(BaseSerializer):
     related_links = fields.List(fields.Str(), required=False, default=[], data_key="relatedLinks")
 
 
+@injectable
 class ItemSerializer(BaseSerializer):
     id = fields.Int(dump_only=True)
     name = fields.Str(required=True)
@@ -53,6 +56,7 @@ class ItemSerializer(BaseSerializer):
         return SupplyItemParseStatus(obj)
 
 
+@injectable
 class ItemFilterRequestSerializer(BaseSerializer):
     item_type_id = fields.Int(load_only=True, required=False, allow_none=True, load_default=None, data_key="itemTypeId")
     price_category_id = fields.Int(
@@ -66,15 +70,18 @@ class ItemFilterRequestSerializer(BaseSerializer):
     page_size = fields.Int(load_only=True, required=False, allow_none=True, load_default=None, data_key="pageSize")
 
 
+@injectable
 class ItemIdsSerializer(BaseSerializer):
     item_ids = fields.List(fields.Int(), data_key="itemIds")
 
 
+@injectable
 class ItemFilteredResultSerializer(BaseSerializer):
     items = fields.Nested(ItemSerializer(many=True))
     total = fields.Int()
 
 
+@injectable
 class ItemJoinData(BaseSerializer):
     item_to_keep_id = fields.Int(load_only=True, required=True, data_key="itemToKeepId")
     item_to_drop_id = fields.Int(load_only=True, required=True, data_key="itemToDropId")
@@ -82,6 +89,7 @@ class ItemJoinData(BaseSerializer):
     main_image_id = fields.Int(load_only=True, required=True, data_key="mainImageId")
 
 
+@injectable
 class PriceCategoryCountersSerializer(BaseSerializer):
     price_category = fields.Nested(
         "PriceCategorySerializer",
@@ -90,10 +98,12 @@ class PriceCategoryCountersSerializer(BaseSerializer):
     count = fields.Int()
 
 
+@injectable
 class ItemTypeCountersSerializer(BaseSerializer):
     item_type = fields.Nested("ItemTypeSerializer", data_key="itemType")
     prices = fields.Nested(PriceCategoryCountersSerializer(many=True))
 
 
+@injectable
 class ItemCountersSerializer(BaseSerializer):
     counters = fields.Nested(ItemTypeCountersSerializer(many=True))

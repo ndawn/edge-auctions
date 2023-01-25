@@ -2,8 +2,6 @@ import re
 from datetime import datetime
 from datetime import timezone
 from string import ascii_uppercase
-from typing import Any
-from typing import Optional
 from urllib.parse import urlencode
 
 import requests
@@ -16,11 +14,13 @@ from auctions.db.models.items import Item
 from auctions.db.models.price_categories import PriceCategory
 from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.price_categories import PriceCategoriesRepository
+from auctions.dependencies import injectable
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import TooManyImages
 from auctions.services.images_service import ImagesService
 
 
+@injectable
 class ParseService:
     def __init__(
         self,
@@ -89,7 +89,7 @@ class ParseService:
         return item
 
     def _parse_item_data_alternative(self, upc: str) -> dict:
-        parsed_data: dict[str, Any] = {"status": SupplyItemParseStatus.SUCCESS}
+        parsed_data: dict[str, ...] = {"status": SupplyItemParseStatus.SUCCESS}
 
         response = requests.get(f"{self.stashmycomics_series_search_page}?upc={upc}")
         page = BeautifulSoup(response.text)
@@ -176,8 +176,8 @@ class ParseService:
 
         return parsed_data
 
-    def _fetch_barcode_data(self, upc: str) -> dict[str, Any]:
-        parsed_data: dict[str, Any] = {"status": SupplyItemParseStatus.SUCCESS}
+    def _fetch_barcode_data(self, upc: str) -> dict[str, ...]:
+        parsed_data: dict[str, ...] = {"status": SupplyItemParseStatus.SUCCESS}
 
         response = requests.get(f"https://www.comics.org/barcode/{upc}/")
         page = BeautifulSoup(response.text)
@@ -294,7 +294,7 @@ class ParseService:
         page: BeautifulSoup,
         issue_number: str,
         issue_alias: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         issue_cover_gallery = page.select_one(".issue_cover_links .right a")
 
         if issue_cover_gallery is None:
@@ -328,12 +328,12 @@ class ParseService:
         parsed_data: dict,
         series_name: str,
         issue_number: str,
-        release_year: Optional[int],
-    ) -> dict[str, Any]:
+        release_year: int | None,
+    ) -> dict[str, ...]:
         if release_year is None:
             return {}
 
-        parsed_data_: dict[str, Any] = {"condition_prices": {}}
+        parsed_data_: dict[str, ...] = {"condition_prices": {}}
 
         query_params = {
             "q": f"{series_name.lower()} #{issue_number}",
@@ -394,7 +394,7 @@ class ParseService:
 
         return parsed_data_
 
-    def _parse_item_price(self, item: Item) -> Optional[PriceCategory]:
+    def _parse_item_price(self, item: Item) -> PriceCategory | None:
         if item.parse_data.get("cover_price") is None or item.parse_data.get("release_date") is None:
             return None
 

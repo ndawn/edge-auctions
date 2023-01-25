@@ -1,11 +1,13 @@
 from marshmallow import fields
 
 from auctions.serializers.base import BaseSerializer
+from auctions.dependencies import injectable
 
 
+@injectable
 class AuctionSerializer(BaseSerializer):
     id = fields.Int(dump_only=True)
-    set_id = fields.Int(load_only=True, required=True, data_key="setId")
+    set_id = fields.Int(required=True, data_key="setId")
     set = fields.Nested("AuctionSetSerializer", exclude=("auctions",), dump_only=True)
     item_id = fields.Int(load_only=True, required=True, data_key="itemId")
     item = fields.Nested("ItemSerializer", dump_only=True)
@@ -20,4 +22,3 @@ class AuctionSerializer(BaseSerializer):
     ended_at = fields.DateTime(dump_only=True, allow_none=True, allow_blank=True, data_key="endedAt")
 
     bids = fields.Nested("BidSerializer", exclude=("auction",), many=True, dump_only=True)
-    external = fields.Nested("ExternalEntitySerializer", many=True, dump_only=True)

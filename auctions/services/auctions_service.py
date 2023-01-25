@@ -8,82 +8,62 @@ import dramatiq
 from auctions.config import Config
 from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.auctions import Auction
-from auctions.db.models.bidders import Bidder
 from auctions.db.models.bids import Bid
 from auctions.db.models.enum import CreateBidFailReason
 from auctions.db.models.enum import SortOrder
+from auctions.db.models.users import User
 from auctions.db.repositories.auction_sets import AuctionSetsRepository
-from auctions.db.repositories.auction_targets import AuctionTargetsRepository
 from auctions.db.repositories.auctions import AuctionsRepository
-from auctions.db.repositories.bidders import BiddersRepository
 from auctions.db.repositories.bids import BidsRepository
-from auctions.db.repositories.external import ExternalEntitiesRepository
 from auctions.db.repositories.items import ItemsRepository
+from auctions.dependencies import injectable
 from auctions.exceptions import AuctionReschedule
 from auctions.exceptions import AuctionSetEndFailed
 from auctions.exceptions import AuctionSetStartFailed
 from auctions.exceptions import CreateBidFailed
 from auctions.services.crud_service import CRUDServiceProvider
-from auctions.services.vk_notification_service import VKNotificationService
 from auctions.utils import text_constants
 
 
+@injectable
 class AuctionsService:
     def __init__(
         self,
         crud_service: CRUDServiceProvider,
-        vk_notification_service: VKNotificationService,
         auction_sets_repository: AuctionSetsRepository,
-        auction_targets_repository: AuctionTargetsRepository,
         auctions_repository: AuctionsRepository,
-        bidders_repository: BiddersRepository,
         bids_repository: BidsRepository,
-        external_entities_repository: ExternalEntitiesRepository,
         items_repository: ItemsRepository,
         config: Config,
     ) -> None:
         self.crud_service = crud_service
-        self.vk_notification_service = vk_notification_service
         self.auction_sets_repository = auction_sets_repository
-        self.auction_targets_repository = auction_targets_repository
         self.auctions_repository = auctions_repository
-        self.bidders_repository = bidders_repository
         self.bids_repository = bids_repository
-        self.external_entities_repository = external_entities_repository
         self.items_repository = items_repository
         self.config = config
 
-    def list_archived_auction_sets(self, target_id: int) -> list[AuctionSet]:
+    def list_archived_auction_sets(self) -> list[AuctionSet]:
         return self.auction_sets_repository.get_many(
-            AuctionSet.ended_at.is_not(None)
-            & (AuctionSet.target_id == target_id),
+            AuctionSet.ended_at.is_not(None),
             sort_key=AuctionSet.ended_at,
             sort_order=SortOrder.DESC,
         )
 
-    def get_active_auction_set(self, target_id: int) -> AuctionSet:
-        return self.auction_sets_repository.get_one(
-            AuctionSet.ended_at.is_(None)
-            & (AuctionSet.target_id == target_id)
-        )
+    def get_active_auction_set(self) -> AuctionSet:
+        return self.auction_sets_repository.get_one(AuctionSet.ended_at.is_(None))
 
     def create_auction_set(
         self,
-        target_id: int,
         date_due: datetime,
         anti_sniper: int,
         item_ids: list[int],
     ) -> AuctionSet:
-        target = self.auction_targets_repository.get_one_by_id(target_id)
         items = self.items_repository.get_many(ids=item_ids)
 
         date_due = date_due.astimezone(timezone.utc)
 
-        auction_set = self.auction_sets_repository.create(
-            target=target,
-            date_due=date_due,
-            anti_sniper=anti_sniper,
-        )
+        auction_set = self.auction_sets_repository.create(date_due=date_due, anti_sniper=anti_sniper)
 
         for item in items:
             auction_set.auctions.append(
@@ -158,7 +138,7 @@ class AuctionsService:
 
         auction_set.ended_at = datetime.now(timezone.utc)
 
-        self.vk_notification_service.notify_winners(self.get_auction_winners(auction_set))
+        # self.notification_service.notify_winners(self.get_auction_winners(auction_set))
         return auction_set
 
     def delete_auction_set(self, set_id: int) -> None:
@@ -167,7 +147,7 @@ class AuctionsService:
         self.auction_sets_repository.delete([auction_set])
 
     @staticmethod
-    def get_auction_winners(auction_set: AuctionSet) -> dict[Bidder, list[Auction]]:
+    def get_auction_winners(auction_set: AuctionSet) -> dict[User, list[Auction]]:
         winners = defaultdict(list)
 
         for auction in auction_set.auctions:
@@ -177,7 +157,7 @@ class AuctionsService:
 
         return dict(winners)
 
-    def create_bid(self, auction: Auction, bidder: Bidder, value: str) -> Bid:
+    def create_bid(self, auction: Auction, bidder: User, value: str) -> Bid:
         now = datetime.now(timezone.utc)
 
         if auction.started_at is None or auction.ended_at is not None:

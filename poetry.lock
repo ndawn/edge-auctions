@@ -107,6 +107,21 @@ files = [
 ]
 
 [[package]]
+name = "authlib"
+version = "1.2.0"
+description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "Authlib-1.2.0-py2.py3-none-any.whl", hash = "sha256:4ddf4fd6cfa75c9a460b361d4bd9dac71ffda0be879dbe4292a02e92349ad55a"},
+    {file = "Authlib-1.2.0.tar.gz", hash = "sha256:4fa3e80883a5915ef9f5bc28630564bc4ed5b5af39812a3ff130ec76bd631e9d"},
+]
+
+[package.dependencies]
+cryptography = ">=3.2"
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.11.1"
 description = "Screen-scraping library"
@@ -458,6 +473,18 @@ memcached = ["pylibmc (>=1.5,<2.0)"]
 rabbitmq = ["pika (>=1.0,<2.0)"]
 redis = ["redis (>=2.0,<5.0)"]
 watch = ["watchdog", "watchdog-gevent"]
+
+[[package]]
+name = "et-xmlfile"
+version = "1.1.0"
+description = "An implementation of lxml.xmlfile for the standard library"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "et_xmlfile-1.1.0-py3-none-any.whl", hash = "sha256:a2ba85d1d6a74ef63837eed693bcb89c3f752169b0e3e7ae5b16ca5e1b3deada"},
+    {file = "et_xmlfile-1.1.0.tar.gz", hash = "sha256:8eb9e2bc2f8c97e37a2dc85a09ecdcdec9d8a396530a6d5a33b30b9a92da0c5c"},
+]
 
 [[package]]
 name = "exif"
@@ -962,6 +989,21 @@ files = [
 ]
 
 [[package]]
+name = "openpyxl"
+version = "3.0.10"
+description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "openpyxl-3.0.10-py2.py3-none-any.whl", hash = "sha256:0ab6d25d01799f97a9464630abacbb34aafecdcaa0ef3cba6d6b3499867d0355"},
+    {file = "openpyxl-3.0.10.tar.gz", hash = "sha256:e47805627aebcf860edb4edf7987b1309c1b3632f3750538ed962bbcc3bd7449"},
+]
+
+[package.dependencies]
+et-xmlfile = "*"
+
+[[package]]
 name = "packaging"
 version = "23.0"
 description = "Core utilities for Python packages"
@@ -1256,6 +1298,21 @@ files = [
 
 [package.dependencies]
 six = ">=1.5"
+
+[[package]]
+name = "python-dotenv"
+version = "0.21.1"
+description = "Read key-value pairs from a .env file and set them as environment variables"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "python-dotenv-0.21.1.tar.gz", hash = "sha256:1c93de8f636cde3ce377292818d0e440b6e45a82f215c3744979151fa8151c49"},
+    {file = "python_dotenv-0.21.1-py3-none-any.whl", hash = "sha256:41e12e0318bebc859fcc4d97d4db8d20ad21721a6aa5047dd59f090391cb549a"},
+]
+
+[package.extras]
+cli = ["click (>=5.0)"]
 
 [[package]]
 name = "pyvips"
@@ -1889,4 +1946,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "1d9d44963a08bc557538b2cb26cc741bbf302ae15e1104c23db0cb5be7d9db3b"
+content-hash = "f483deed80ccf16eac669b3507e0f1c07c5f7134c072e0909e7b74c0c74b586b"

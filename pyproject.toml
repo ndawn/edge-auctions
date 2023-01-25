@@ -30,6 +30,9 @@ sqlalchemy = "^1.4"
 uvicorn = "^0.20"
 vk = "^3.0"
 webargs = "^8.2"
+openpyxl = "^3.0.10"
+authlib = "^1.2.0"
+python-dotenv = "^0.21.1"
 
 [tool.poetry.dev-dependencies]
 black = "^22.12"

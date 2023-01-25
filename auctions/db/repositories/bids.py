@@ -1,23 +1,16 @@
-from typing import Type
-
 from auctions.db.models.bids import Bid
-from auctions.db.models.external import ExternalEntity
 from auctions.db.repositories.base import Repository
+from auctions.dependencies import injectable
 
 
+@injectable
 class BidsRepository(Repository[Bid]):
     joined_fields = (
         Bid.auction,
         Bid.bidder,
         Bid.next_bid,
-        Bid.external,
     )
 
     @property
-    def model(self) -> Type[Bid]:
+    def model(self) -> type[Bid]:
         return Bid
-
-    def add_external(self, bid: Bid, entity: ExternalEntity) -> Bid:
-        bid.external = entity
-        self.session.refresh(bid)
-        return bid

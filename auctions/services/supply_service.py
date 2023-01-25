@@ -1,5 +1,3 @@
-from typing import Optional
-
 from auctions.db.models.enum import SupplyItemParseStatus
 from auctions.db.models.images import Image
 from auctions.db.models.item_types import ItemType
@@ -9,6 +7,7 @@ from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.images import ImagesRepository
 from auctions.db.repositories.items import ItemsRepository
 from auctions.db.repositories.sessions import SupplySessionsRepository
+from auctions.dependencies import injectable
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import ItemProcessingFailed
 from auctions.exceptions import SessionApplyFailed
@@ -16,6 +15,7 @@ from auctions.services.images_service import ImagesService
 from auctions.services.parse_service import ParseService
 
 
+@injectable
 class SupplyService:
     def __init__(
         self,
@@ -33,7 +33,7 @@ class SupplyService:
         self.items_repository = items_repository
         self.supply_sessions_repository = supply_sessions_repository
 
-    def get_current_session(self) -> Optional[SupplySession]:
+    def get_current_session(self) -> SupplySession | None:
         return self.supply_sessions_repository.get_current_session()
 
     def start_session(self, item_type: ItemType, images: list[Image]) -> SupplySession:

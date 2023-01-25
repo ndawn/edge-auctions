@@ -18,19 +18,14 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 from auctions.db import db
-from auctions.db.models.auction_sets import AuctionSet_ExternalEntity
-from auctions.db.models.auction_targets import AuctionTarget
-from auctions.db.models.auction_targets import AuctionTarget_ExternalEntity
 from auctions.db.models.auctions import Auction
-from auctions.db.models.auctions import Auction_ExternalEntity
-from auctions.db.models.bidders import Bidder
-from auctions.db.models.bidders import Bidder_ExternalEntity
+from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.bids import Bid
-from auctions.db.models.external import ExternalEntity
 from auctions.db.models.images import Image
 from auctions.db.models.item_types import ItemType
 from auctions.db.models.items import Item
 from auctions.db.models.price_categories import PriceCategory
+from auctions.db.models.shop import ShopInfo
 from auctions.db.models.sessions import SupplySession
 from auctions.db.models.templates import Template
 from auctions.db.models.users import AuthToken

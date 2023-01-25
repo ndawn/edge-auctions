@@ -80,15 +80,6 @@ class InvalidAuthToken(NotAuthorizedError):
     default_message: str = "Auth token is invalid or expired"
 
 
-class ExternalEntityDoesNotExist(ObjectDoesNotExist):
-    default_message: str = "External entity does not exist"
-    default_status_code: int = 500
-
-    def __init__(self, source: str, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.message = f"{self.default_message} for source {source}"
-
-
 class MainImageDoesNotExist(ObjectDoesNotExist):
     default_message: str = "Main image does not exist"
     default_status_code: int = 500

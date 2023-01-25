@@ -1,8 +1,5 @@
 from typing import Generic
-from typing import Optional
-from typing import Type
 from typing import TypeVar
-from typing import Union
 
 from sqlalchemy import asc
 from sqlalchemy import delete
@@ -18,13 +15,9 @@ from sqlalchemy.sql.selectable import FromClause
 from auctions.config import Config
 from auctions.db import db
 from auctions.db.models.auction_sets import AuctionSet
-from auctions.db.models.auction_targets import AuctionTarget
 from auctions.db.models.auctions import Auction
-from auctions.db.models.bidders import Bidder
 from auctions.db.models.bids import Bid
 from auctions.db.models.enum import SortOrder
-from auctions.db.models.external import ExternalEntity
-from auctions.db.models.external import ExternalToken
 from auctions.db.models.images import Image
 from auctions.db.models.item_types import ItemType
 from auctions.db.models.items import Item
@@ -38,12 +31,8 @@ from auctions.exceptions import ObjectDoesNotExist
 Model = TypeVar(
     "Model",
     AuctionSet,
-    AuctionTarget,
     Auction,
-    Bidder,
     Bid,
-    ExternalEntity,
-    ExternalToken,
     Image,
     ItemType,
     Item,
@@ -59,12 +48,12 @@ class Repository(Generic[Model]):
     default_page_size: int = 50
     joined_fields: tuple[InstrumentedAttribute, ...] = ()
 
-    def __init__(self, config: Config, session: Optional[Session] = None) -> None:
+    def __init__(self, config: Config, session: Session | None = None) -> None:
         self.config = config
         self.session = session or db.session
 
     @property
-    def model(self) -> Type[Model]:
+    def model(self) -> type[Model]:
         raise NotImplementedError
 
     @property
@@ -77,7 +66,7 @@ class Repository(Generic[Model]):
 
         return select_statement
 
-    def create(self, instance: Optional[Model] = None, /, **kwargs) -> Model:
+    def create(self, instance: Model | None = None, /, **kwargs) -> Model:
         if instance is None:
             instance = self.model(**kwargs)
         self.session.add(instance)
@@ -86,15 +75,15 @@ class Repository(Generic[Model]):
 
     def get_many(
         self,
-        filters: Union[BooleanClauseList, True_] = true(),
-        sort_key: Optional[InstrumentedAttribute] = None,
+        filters: BooleanClauseList | True_ = true(),
+        sort_key: InstrumentedAttribute | None = None,
         sort_order: SortOrder = SortOrder.ASC,
         page_size: int = None,
         page: int = None,
         ids: list[int] = None,
         with_pagination: bool = True,
         with_joined_fields: bool = True,
-    ) -> Union[list[Model], dict[str, Union[int, list[Model]]]]:
+    ) -> list[Model] | dict[str, int | list[Model]]:
         if sort_key is None:
             sort_key = self.pk
 
