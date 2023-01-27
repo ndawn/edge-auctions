@@ -15,10 +15,10 @@ def run_configured(app):
     config = uvicorn.Config(
         app,
         host="0.0.0.0",
-        port=1337,
         workers=cpu_count() + 1,
         interface="wsgi",
         log_level="debug",
+        **bind_kwargs,
     )
 
     server = uvicorn.Server(config)
