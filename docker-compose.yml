@@ -7,8 +7,6 @@ services:
     build: .
     env_file: .env
     restart: always
-    ports:
-      - 1337:1337
     environment:
       RUN_MODE: app
       CONFIG_PATH: ./config/config.yml
@@ -30,6 +28,7 @@ services:
       - ./logs:/app/logs
       - ./images:/app/images
       - ./config:/app/config
+      - ./sockets:/app/sockets
     depends_on:
       - db
       - dramatiq
