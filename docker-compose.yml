@@ -5,6 +5,7 @@ services:
   app:
     container_name: edge_auctions_app
     build: .
+    env_file: .env
     restart: always
     ports:
       - 1337:1337
@@ -23,6 +24,7 @@ services:
   dramatiq:
     container_name: edge_auctions_dramatiq
     build: .
+    env_file: .env
     restart: always
     environment:
       RUN_MODE: worker
@@ -36,7 +38,7 @@ services:
       - bridge
   db:
     container_name: edge_auctions_db
-    image: postgres:14-alpine
+    image: postgres:alpine
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
