@@ -7,7 +7,7 @@ from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.images import ImagesRepository
 from auctions.db.repositories.items import ItemsRepository
 from auctions.db.repositories.sessions import SupplySessionsRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import ItemProcessingFailed
 from auctions.exceptions import SessionApplyFailed
@@ -15,16 +15,15 @@ from auctions.services.images_service import ImagesService
 from auctions.services.parse_service import ParseService
 
 
-@injectable
 class SupplyService:
     def __init__(
         self,
-        images_service: ImagesService,
-        parse_service: ParseService,
-        images_repository: ImagesRepository,
-        item_types_repository: ItemTypesRepository,
-        items_repository: ItemsRepository,
-        supply_sessions_repository: SupplySessionsRepository,
+        images_service: ImagesService = Provide(),
+        parse_service: ParseService = Provide(),
+        images_repository: ImagesRepository = Provide(),
+        item_types_repository: ItemTypesRepository = Provide(),
+        items_repository: ItemsRepository = Provide(),
+        supply_sessions_repository: SupplySessionsRepository = Provide(),
     ) -> None:
         self.images_service = images_service
         self.parse_service = parse_service

@@ -57,6 +57,9 @@ class SecretConfigSchema(Schema):
 
 
 class ConfigSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     result_ttl_ms = fields.Int(validate=validate.Range(min=0), required=True)
     debug = fields.Bool(required=True)
     token_expire_time = fields.Int(validate=validate.Range(min=0), required=True)

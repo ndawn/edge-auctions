@@ -1,10 +1,8 @@
 from marshmallow import fields
 
 from auctions.serializers.base import BaseSerializer
-from auctions.dependencies import injectable
 
 
-@injectable
 class UserSerializer(BaseSerializer):
     id = fields.Int(dump_only=True)
     username = fields.Str()
@@ -13,7 +11,6 @@ class UserSerializer(BaseSerializer):
     last_name = fields.Str(data_key="lastName")
 
 
-@injectable
 class UserInfoSerializer(BaseSerializer):
     given_name = fields.Str(required=True)
     family_name = fields.Str(required=True)
@@ -33,7 +30,6 @@ class UserInfoSerializer(BaseSerializer):
     nonce = fields.Str(required=True)
 
 
-@injectable
 class AuthTokenSerializer(BaseSerializer):
     access_token = fields.Str(required=True)
     id_token = fields.Str(required=True)

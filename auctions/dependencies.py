@@ -33,9 +33,8 @@ class DependencyProvider:
     def __init__(self):
         self._cache = {}
 
-    @staticmethod
-    def add_global(name: str, obj: ...) -> None:
-        GLOBALS[name] = (obj, set())
+    def add_global(self, obj: ...) -> None:
+        GLOBALS[self.get_qual_name(obj.__class__)] = obj
 
     @staticmethod
     def get_qual_name(cls: type) -> str:
@@ -56,9 +55,8 @@ class DependencyProvider:
             )
             for arg_name, arg_value in signature.parameters.items()
             if (
-                isinstance(arg_value.default, (Provide, inspect.Parameter.empty))
+                isinstance(arg_value.default, Provide)
                 and not isinstance(arg_value.annotation, inspect.Parameter.empty)
-                and "__injectable__" in arg_value.annotation.__dict__
             )
         ]
 
@@ -73,8 +71,8 @@ class DependencyProvider:
 
         for sub_dependency in dependency.depends:
             dep_instance = self.provide(sub_dependency)
-            dep_kwargs[dependency.arg_name] = dep_instance
-            self._cache[dependency.class_name] = dep_instance
+            dep_kwargs[sub_dependency.arg_name] = dep_instance
+            self._cache[sub_dependency.class_name] = dep_instance
 
         return dependency.class_(**dep_kwargs)
 

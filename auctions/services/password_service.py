@@ -8,12 +8,11 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
 from auctions.config import Config
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 
 
-@injectable
 class PasswordService:
-    def __init__(self, password_hasher: PasswordHasher, config: Config) -> None:
+    def __init__(self, password_hasher: PasswordHasher = Provide(), config: Config = Provide()) -> None:
         self.hasher = password_hasher
         self.config = config
 

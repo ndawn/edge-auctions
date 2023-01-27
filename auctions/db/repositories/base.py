@@ -24,8 +24,8 @@ from auctions.db.models.items import Item
 from auctions.db.models.price_categories import PriceCategory
 from auctions.db.models.sessions import SupplySession
 from auctions.db.models.templates import Template
-from auctions.db.models.users import AuthToken
 from auctions.db.models.users import User
+from auctions.dependencies import Provide
 from auctions.exceptions import ObjectDoesNotExist
 
 Model = TypeVar(
@@ -39,7 +39,6 @@ Model = TypeVar(
     PriceCategory,
     SupplySession,
     Template,
-    AuthToken,
     User,
 )
 
@@ -48,7 +47,7 @@ class Repository(Generic[Model]):
     default_page_size: int = 50
     joined_fields: tuple[InstrumentedAttribute, ...] = ()
 
-    def __init__(self, config: Config, session: Session | None = None) -> None:
+    def __init__(self, config: Config = Provide(), session: Session | None = None) -> None:
         self.config = config
         self.session = session or db.session
 
@@ -132,7 +131,7 @@ class Repository(Generic[Model]):
 
         return result
 
-    def get_one_by_id(self, object_id: int, with_joined_fields: bool = True) -> Model:
+    def get_one_by_id(self, object_id: int | str, with_joined_fields: bool = True) -> Model:
         select_statement = select(self.model).where(self.pk == object_id)
 
         if with_joined_fields:

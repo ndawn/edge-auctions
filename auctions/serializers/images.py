@@ -1,10 +1,8 @@
 from marshmallow import fields
 
 from auctions.serializers.base import BaseSerializer
-from auctions.dependencies import injectable
 
 
-@injectable
 class ImageSerializer(BaseSerializer):
     id = fields.Int(dump_only=True)
     mime_type = fields.Str(required=True, data_key="mimeType")

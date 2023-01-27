@@ -1,30 +1,21 @@
 from functools import wraps
-from typing import Callable
 
-from authlib.integrations.flask_oauth2 import ResourceProtector
-
+from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.exceptions import ForbiddenError
 from auctions.exceptions import UserNotAuthenticatedError
 from auctions.services.users_service import UsersService
+from auctions.utils.resource_protector import require_auth
 from auctions.utils.response import JsonResponse
 
-require_auth = ResourceProtector()
 
-
-def login_required(*, scopes: str | None = None, is_admin: bool = True, inject_user: bool = False) -> Callable:
-    def decorator(func: Callable) -> Callable:
+def login_required(*, is_admin: bool = True, inject_user: bool = False) -> callable:
+    def decorator(func: callable) -> callable:
         @wraps(func)
-        @require_auth(scopes)
         @inject
-        def decorated(
-            *args,
-            users_service: UsersService,
-            **kwargs,
-        ) -> JsonResponse:
-            from flask import request
-
-            user = users_service.get_current_user(request)
+        def decorated(*args, users_service: UsersService = Provide(), **kwargs) -> JsonResponse:
+            with require_auth.acquire() as token:
+                user = users_service.get_user(token.sub)
 
             if user is None:
                 raise UserNotAuthenticatedError()

@@ -16,15 +16,13 @@ from auctions.db.repositories.items import ItemsRepository
 from auctions.db.repositories.price_categories import PriceCategoriesRepository
 from auctions.db.repositories.sessions import SupplySessionsRepository
 from auctions.db.repositories.templates import TemplatesRepository
-from auctions.db.repositories.users import AuthTokensRepository
 from auctions.db.repositories.users import UsersRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import HTTPError
 from auctions.exceptions import ObjectDoesNotExist
 
 
-@injectable
 class CRUDServiceProvider:
     __instance = None
 
@@ -36,17 +34,16 @@ class CRUDServiceProvider:
 
     def __init__(
         self,
-        auction_sets_repository: AuctionSetsRepository,
-        auctions_repository: AuctionsRepository,
-        bids_repository: BidsRepository,
-        images_repository: ImagesRepository,
-        item_types_repository: ItemTypesRepository,
-        items_repository: ItemsRepository,
-        price_categories_repository: PriceCategoriesRepository,
-        supply_sessions_repository: SupplySessionsRepository,
-        templates_repository: TemplatesRepository,
-        auth_tokens_repository: AuthTokensRepository,
-        users_repository: UsersRepository,
+        auction_sets_repository: AuctionSetsRepository = Provide(),
+        auctions_repository: AuctionsRepository = Provide(),
+        bids_repository: BidsRepository = Provide(),
+        images_repository: ImagesRepository = Provide(),
+        item_types_repository: ItemTypesRepository = Provide(),
+        items_repository: ItemsRepository = Provide(),
+        price_categories_repository: PriceCategoriesRepository = Provide(),
+        supply_sessions_repository: SupplySessionsRepository = Provide(),
+        templates_repository: TemplatesRepository = Provide(),
+        users_repository: UsersRepository = Provide(),
     ) -> None:
         self.cache = {}
         self.repositories = [
@@ -59,7 +56,6 @@ class CRUDServiceProvider:
             price_categories_repository,
             supply_sessions_repository,
             templates_repository,
-            auth_tokens_repository,
             users_repository,
         ]
 

@@ -14,19 +14,18 @@ from auctions.db.models.items import Item
 from auctions.db.models.price_categories import PriceCategory
 from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.price_categories import PriceCategoriesRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import TooManyImages
 from auctions.services.images_service import ImagesService
 
 
-@injectable
 class ParseService:
     def __init__(
         self,
-        images_service: ImagesService,
-        item_types_repository: ItemTypesRepository,
-        price_categories_repository: PriceCategoriesRepository,
+        images_service: ImagesService = Provide(),
+        item_types_repository: ItemTypesRepository = Provide(),
+        price_categories_repository: PriceCategoriesRepository = Provide(),
     ) -> None:
         self.images_service = images_service
         self.item_types_repository = item_types_repository

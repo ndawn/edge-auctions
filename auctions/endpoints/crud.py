@@ -6,12 +6,13 @@ from webargs import fields
 from webargs.flaskparser import parser
 
 from auctions.db.repositories.base import Model
+from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.serializers.base import BaseSerializer
 from auctions.serializers.delete_object import DeleteObjectSerializer
 from auctions.services.crud_service import CRUDServiceProvider
 from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import require_auth
+from auctions.utils.login import login_required
 from auctions.utils.misc import to_snake_case
 from auctions.utils.response import JsonResponse
 
@@ -61,8 +62,8 @@ def create_crud_blueprint(
 
     def list_objects(
         *,
-        crud_service: CRUDServiceProvider,
-        serializer: serializer_class,
+        crud_service: CRUDServiceProvider = Provide(),
+        serializer: serializer_class = Provide(),
     ) -> JsonResponse:
         args = parser.parse(all_list_args, request, location="query")
         instances = crud_service(model).list(**args)
@@ -71,16 +72,16 @@ def create_crud_blueprint(
     def get_object(
         *,
         id_: int,
-        crud_service: CRUDServiceProvider,
-        serializer: serializer_class,
+        crud_service: CRUDServiceProvider = Provide(),
+        serializer: serializer_class = Provide(),
     ) -> JsonResponse:
         instance = crud_service(model).get(id_)
         return JsonResponse(serializer.dump(instance))
 
     def create_object(
         *,
-        crud_service: CRUDServiceProvider,
-        serializer: serializer_class,
+        crud_service: CRUDServiceProvider = Provide(),
+        serializer: serializer_class = Provide(),
     ) -> JsonResponse:
         args = parser.parse(create_args, request, location="json")
         instance = crud_service(model).create(**args)
@@ -89,8 +90,8 @@ def create_crud_blueprint(
     def update_object(
         *,
         id_: int,
-        crud_service: CRUDServiceProvider,
-        serializer: serializer_class,
+        crud_service: CRUDServiceProvider = Provide(),
+        serializer: serializer_class = Provide(),
     ) -> JsonResponse:
         args = parser.parse(update_args, request, location="json")
         instance = crud_service(model).update(id_, **args)
@@ -99,8 +100,8 @@ def create_crud_blueprint(
     def delete_object(
         *,
         id_: int,
-        crud_service: CRUDServiceProvider,
-        delete_object_serializer: DeleteObjectSerializer,
+        crud_service: CRUDServiceProvider = Provide(),
+        delete_object_serializer: DeleteObjectSerializer = Provide(),
     ) -> JsonResponse:
         crud_service(model).delete(id_)
         return JsonResponse(delete_object_serializer.dump(None))
@@ -142,7 +143,7 @@ def create_crud_blueprint(
         apply_decorators(
             bind_function_name(func, func_name),
             inject,
-            require_auth(None),
+            login_required(is_admin=operation in protected),
             with_error_handler,
             method(endpoint),
         )

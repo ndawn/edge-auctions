@@ -1,10 +1,8 @@
 from marshmallow import fields
 
 from auctions.serializers.base import BaseSerializer
-from auctions.dependencies import injectable
 
 
-@injectable
 class AuctionSerializer(BaseSerializer):
     id = fields.Int(dump_only=True)
     set_id = fields.Int(required=True, data_key="setId")

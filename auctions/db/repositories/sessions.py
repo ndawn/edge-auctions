@@ -1,10 +1,8 @@
 from auctions.db.models.items import Item
 from auctions.db.models.sessions import SupplySession
 from auctions.db.repositories.base import Repository
-from auctions.dependencies import injectable
 
 
-@injectable
 class SupplySessionsRepository(Repository[SupplySession]):
     joined_fields = (
         SupplySession.item_type,

@@ -16,7 +16,7 @@ from auctions.db.repositories.auction_sets import AuctionSetsRepository
 from auctions.db.repositories.auctions import AuctionsRepository
 from auctions.db.repositories.bids import BidsRepository
 from auctions.db.repositories.items import ItemsRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 from auctions.exceptions import AuctionReschedule
 from auctions.exceptions import AuctionSetEndFailed
 from auctions.exceptions import AuctionSetStartFailed
@@ -25,16 +25,15 @@ from auctions.services.crud_service import CRUDServiceProvider
 from auctions.utils import text_constants
 
 
-@injectable
 class AuctionsService:
     def __init__(
         self,
-        crud_service: CRUDServiceProvider,
-        auction_sets_repository: AuctionSetsRepository,
-        auctions_repository: AuctionsRepository,
-        bids_repository: BidsRepository,
-        items_repository: ItemsRepository,
-        config: Config,
+        crud_service: CRUDServiceProvider = Provide(),
+        auction_sets_repository: AuctionSetsRepository = Provide(),
+        auctions_repository: AuctionsRepository = Provide(),
+        bids_repository: BidsRepository = Provide(),
+        items_repository: ItemsRepository = Provide(),
+        config: Config = Provide(),
     ) -> None:
         self.crud_service = crud_service
         self.auction_sets_repository = auction_sets_repository

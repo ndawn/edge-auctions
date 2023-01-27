@@ -13,12 +13,11 @@ from auctions.config import Config
 from auctions.db.models.images import Image
 from auctions.db.models.items import Item
 from auctions.db.repositories.images import ImagesRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 
 
-@injectable
 class ImagesService:
-    def __init__(self, images_repository: ImagesRepository, config: Config) -> None:
+    def __init__(self, images_repository: ImagesRepository = Provide(), config: Config = Provide()) -> None:
         self.images_repository = images_repository
         self.config = config
 

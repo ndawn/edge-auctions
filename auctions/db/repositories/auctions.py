@@ -11,11 +11,9 @@ from auctions.db.models.price_categories import PriceCategory
 from auctions.db.models.sessions import SupplySession
 from auctions.db.models.users import User
 from auctions.db.repositories.base import Repository
-from auctions.dependencies import injectable
 from auctions.exceptions import BadRequestError
 
 
-@injectable
 class AuctionsRepository(Repository[Auction]):
     model_id = "auction_id"
 

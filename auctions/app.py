@@ -2,6 +2,8 @@ import os
 import subprocess
 import sys
 
+from argon2 import PasswordHasher
+from authlib.integrations.flask_client import OAuth
 from dramatiq import set_broker
 from flask import Flask
 from flask import jsonify
@@ -12,8 +14,6 @@ from auctions.endpoints import root_blueprint
 from auctions.tasks import create_broker
 from auctions.utils.app import create_base_app
 from auctions.utils.login import require_auth
-from auctions.utils.oauth import OAuth
-from auctions.utils.password_hasher import PasswordHasher
 from auctions.utils.token_validator import Auth0JWTBearerTokenValidator
 from uvicorn_config import run_configured
 
@@ -45,9 +45,11 @@ def create_app(config: Config) -> Flask:
     broker = create_broker(config)
     set_broker(broker)
 
-    DependencyProvider.add_global("config", config)
-    DependencyProvider.add_global("oauth", oauth)
-    DependencyProvider.add_global("password_hasher", PasswordHasher())
+    provider = DependencyProvider()
+
+    provider.add_global(config)
+    provider.add_global(oauth)
+    provider.add_global(PasswordHasher())
 
     @app.errorhandler(422)
     @app.errorhandler(405)

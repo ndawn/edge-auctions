@@ -1,18 +1,17 @@
 from auctions.config import Config
 from auctions.db.models.shop import ShopInfo
 from auctions.db.repositories.shop import ShopInfoRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 from auctions.exceptions import ForbiddenError
 from auctions.services.password_service import PasswordService
 
 
-@injectable
 class ShopService:
     def __init__(
         self,
-        password_service: PasswordService,
-        shop_info_repository: ShopInfoRepository,
-        config: Config,
+        password_service: PasswordService = Provide(),
+        shop_info_repository: ShopInfoRepository = Provide(),
+        config: Config = Provide(),
     ) -> None:
         self.password_service = password_service
         self.shop_info_repository = shop_info_repository

@@ -3,6 +3,7 @@ from webargs import fields
 from webargs.flaskparser import parser
 
 from auctions.db.models.items import Item
+from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.endpoints.crud import create_crud_blueprint
 from auctions.serializers.delete_object import DeleteObjectSerializer
@@ -12,7 +13,7 @@ from auctions.serializers.items import ItemIdsSerializer
 from auctions.serializers.items import ItemSerializer
 from auctions.services.items_service import ItemsService
 from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import require_auth
+from auctions.utils.login import login_required
 from auctions.utils.response import JsonResponse
 
 blueprint = create_crud_blueprint(
@@ -30,12 +31,12 @@ blueprint = create_crud_blueprint(
 
 @blueprint.get("")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def list_items(
-    items_service: ItemsService,
-    item_filter_request_serializer: ItemFilterRequestSerializer,
-    item_serializer: ItemSerializer,
+    items_service: ItemsService = Provide(),
+    item_filter_request_serializer: ItemFilterRequestSerializer = Provide(),
+    item_serializer: ItemSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse(item_filter_request_serializer, request, location="query")
     result = items_service.list_items(args)
@@ -44,11 +45,11 @@ def list_items(
 
 @blueprint.get("/counters")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def get_item_counters(
-    items_service: ItemsService,
-    item_counters_serializer: ItemCountersSerializer,
+    items_service: ItemsService = Provide(),
+    item_counters_serializer: ItemCountersSerializer = Provide(),
 ) -> JsonResponse:
     result = items_service.get_counters()
     return JsonResponse(item_counters_serializer.dump({"counters": result}))
@@ -56,11 +57,11 @@ def get_item_counters(
 
 @blueprint.post("/random_set")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def get_random_item_set_for_auction(
-    items_service: ItemsService,
-    item_serializer: ItemSerializer,
+    items_service: ItemsService = Provide(),
+    item_serializer: ItemSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse({
         "amounts": fields.Dict(
@@ -75,11 +76,11 @@ def get_random_item_set_for_auction(
 
 @blueprint.post("/random_auction")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def get_random_item_for_auction(
-    items_service: ItemsService,
-    item_serializer: ItemSerializer,
+    items_service: ItemsService = Provide(),
+    item_serializer: ItemSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse({
         "item_type_id": fields.Int(data_key="itemTypeId"),
@@ -96,12 +97,12 @@ def get_random_item_for_auction(
 
 @blueprint.put("/<int:id_>")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def update_item(
     id_: int,
-    items_service: ItemsService,
-    item_serializer: ItemSerializer,
+    items_service: ItemsService = Provide(),
+    item_serializer: ItemSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse(ItemSerializer(partial=True), request)
     item = items_service.update_item(id_, args)
@@ -110,12 +111,12 @@ def update_item(
 
 @blueprint.delete("")
 @with_error_handler
-@require_auth(None)
+@login_required()
 @inject
 def delete_items(
-    items_service: ItemsService,
-    item_ids_serializer: ItemIdsSerializer,
-    delete_object_serializer: DeleteObjectSerializer,
+    items_service: ItemsService = Provide(),
+    item_ids_serializer: ItemIdsSerializer = Provide(),
+    delete_object_serializer: DeleteObjectSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse(item_ids_serializer, request)
     items_service.delete_items(args.get("item_ids"))

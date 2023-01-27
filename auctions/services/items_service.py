@@ -5,16 +5,15 @@ from auctions.db.models.enum import SupplyItemParseStatus
 from auctions.db.models.items import Item
 from auctions.db.repositories.items import ItemsRepository
 from auctions.db.repositories.item_types import ItemTypesRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 
 
-@injectable
 class ItemsService:
     def __init__(
         self,
-        items_repository: ItemsRepository,
-        item_types_repository: ItemTypesRepository,
-        config: Config,
+        items_repository: ItemsRepository = Provide(),
+        item_types_repository: ItemTypesRepository = Provide(),
+        config: Config = Provide(),
     ) -> None:
         self.items_repository = items_repository
         self.item_types_repository = item_types_repository

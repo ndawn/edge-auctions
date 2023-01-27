@@ -4,18 +4,16 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from auctions.db.models.auctions import Auction
-from auctions.db.models.users import User
 from auctions.db.repositories.auctions import AuctionsRepository
 from auctions.db.repositories.users import UsersRepository
-from auctions.dependencies import injectable
+from auctions.dependencies import Provide
 
 
-@injectable
 class ExportService:
     def __init__(
         self,
-        auctions_repository: AuctionsRepository,
-        users_repository: UsersRepository,
+        auctions_repository: AuctionsRepository = Provide(),
+        users_repository: UsersRepository = Provide(),
     ) -> None:
         self.auctions_repository = auctions_repository
         self.users_repository = users_repository

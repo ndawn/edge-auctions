@@ -5,10 +5,8 @@ from sqlalchemy.sql.selectable import FromClause
 from auctions.db.models.auctions import Auction
 from auctions.db.models.items import Item
 from auctions.db.repositories.base import Repository
-from auctions.dependencies import injectable
 
 
-@injectable
 class ItemsRepository(Repository[Item]):
     joined_fields = (
         Item.wrap_to,

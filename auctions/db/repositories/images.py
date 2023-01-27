@@ -1,9 +1,7 @@
 from auctions.db.models.images import Image
 from auctions.db.repositories.base import Repository
-from auctions.dependencies import injectable
 
 
-@injectable
 class ImagesRepository(Repository[Image]):
     joined_fields = ()
 
