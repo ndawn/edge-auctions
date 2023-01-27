@@ -3,6 +3,7 @@ FROM app_base
 WORKDIR /app
 
 COPY . .
+COPY ./.env .
 
 STOPSIGNAL SIGINT
 
