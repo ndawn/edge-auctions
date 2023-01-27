@@ -12,6 +12,20 @@ services:
     environment:
       RUN_MODE: app
       CONFIG_PATH: ./config/config.yml
+      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@edge_auctions_db:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BROKER_URL: ${BROKER_URL}
+      RESULT_BACKEND_URL: ${RESULT_BACKEND_URL}
+      SHOP_SECRET: ${SHOP_SECRET}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_API_IDENTIFIER: ${AUTH0_API_IDENTIFIER}
+      AUTH0_APP_SECRET_KEY: ${AUTH0_APP_SECRET_KEY}
+      AUTH0_LOGIN_REDIRECT_URI: ${AUTH0_LOGIN_REDIRECT_URI}
+      AUTH0_LOGOUT_REDIRECT_URI: ${AUTH0_LOGOUT_REDIRECT_URI}
     volumes:
       - ./logs:/app/logs
       - ./images:/app/images
@@ -29,6 +43,20 @@ services:
     environment:
       RUN_MODE: worker
       CONFIG_PATH: ./config/config.yml
+      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@edge_auctions_db:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BROKER_URL: ${BROKER_URL}
+      RESULT_BACKEND_URL: ${RESULT_BACKEND_URL}
+      SHOP_SECRET: ${SHOP_SECRET}
+      AUTH0_CLIENT_ID: ${AUTH0_CLIENT_ID}
+      AUTH0_CLIENT_SECRET: ${AUTH0_CLIENT_SECRET}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_API_IDENTIFIER: ${AUTH0_API_IDENTIFIER}
+      AUTH0_APP_SECRET_KEY: ${AUTH0_APP_SECRET_KEY}
+      AUTH0_LOGIN_REDIRECT_URI: ${AUTH0_LOGIN_REDIRECT_URI}
+      AUTH0_LOGOUT_REDIRECT_URI: ${AUTH0_LOGOUT_REDIRECT_URI}
     volumes:
       - ./logs:/app/logs
       - ./config:/app/config
