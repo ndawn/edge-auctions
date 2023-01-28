@@ -7,8 +7,6 @@ services:
     build: .
     env_file: .env
     restart: always
-    ports:
-      - 1337:1337
     environment:
       RUN_MODE: app
       CONFIG_PATH: ./config/config.yml
@@ -88,18 +86,19 @@ services:
       - ./redis/:/bitnami/redis/data
     networks:
       - bridge
-#  client:
-#    container_name: edge_auctions_client
-#    image: app_client
-#    restart: always
-#    volumes:
-#      - /etc/letsencrypt:/etc/letsencrypt
-#      - ./sockets/:/sockets
-#      - ./images:/static/dist/images
-#    depends_on:
-#      - app
-#    networks:
-#      - bridge
-#    ports:
-#      - 80:80
-#      - 443:443
+  client:
+    container_name: edge_auctions_nginx
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt
+      - ./client/dist:/dist
+      - ./images:/images
+    depends_on:
+      - app
+    networks:
+      - bridge
+    ports:
+      - 80:80
+      - 443:443
