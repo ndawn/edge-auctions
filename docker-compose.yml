@@ -79,12 +79,12 @@ services:
       - bridge
   redis:
     container_name: edge_auctions_redis
-    image: redis:alpine
+    image: bitnami/redis:latest
     restart: always
     environment:
       ALLOW_EMPTY_PASSWORD: true
     volumes:
-      - ./redis/:/data
+      - ./redis/:/bitnami/redis/data
     networks:
       - bridge
 #  client:
