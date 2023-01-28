@@ -28,7 +28,6 @@ from auctions.db.models.price_categories import PriceCategory
 from auctions.db.models.shop import ShopInfo
 from auctions.db.models.sessions import SupplySession
 from auctions.db.models.templates import Template
-from auctions.db.models.users import AuthToken
 from auctions.db.models.users import User
 
 target_metadata = db.Model.metadata

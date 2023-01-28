@@ -14,7 +14,7 @@ class Bid(db.Model):
     __tablename__ = "bids"
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    user_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="RESTRICT"))
+    user_id: Mapped[str] = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="RESTRICT"))
     user: Mapped["User"] = db.relationship("User", foreign_keys="Bid.user_id", back_populates="bids")
     auction_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("auctions.id", ondelete="CASCADE"))
     auction: Mapped["Auction"] = db.relationship("Auction", foreign_keys="Bid.auction_id", back_populates="bids")
