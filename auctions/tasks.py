@@ -73,7 +73,8 @@ def close_auction_set(set_id: int, auctions_service: AuctionsService) -> str:
 if os.getenv("RUN_MODE", "") == "worker":
     config = Config.load(os.getenv("CONFIG_PATH", ""))
     app = create_base_app(config)
-    DependencyProvider.add_global("config", config)
+    provider = DependencyProvider()
+    provider.add_global(config)
     broker = create_broker(config)
     dramatiq.set_broker(broker)
 
