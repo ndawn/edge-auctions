@@ -102,7 +102,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt
-      - ./client/dist:/dist
+      - ./client_ui/dist:/dist/ui
+      - ./client_admin/dist:/dist/admin
       - ./images:/images
     depends_on:
       - app
