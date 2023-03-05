@@ -1,3 +1,4 @@
+import gc
 from mimetypes import guess_extension
 from mimetypes import guess_type
 from pathlib import Path
@@ -97,6 +98,9 @@ class ImagesService:
         pillow_image = PillowImage.open(image.urls["full"])
 
         codes = decode(pillow_image, symbols=[ZBarSymbol.EAN13, ZBarSymbol.EAN5, ZBarSymbol.UPCA])
+
+        del pillow_image
+        gc.collect()
 
         upca = None
         ean13 = None
