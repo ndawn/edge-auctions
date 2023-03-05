@@ -6,7 +6,7 @@ services:
     container_name: edge_auctions_app
     build: .
     env_file: .env
-    restart: always
+    restart: unless-stopped
     environment:
       RUN_MODE: app
       CONFIG_PATH: ./config/config.yml
@@ -37,7 +37,7 @@ services:
     container_name: edge_auctions_dramatiq
     build: .
     env_file: .env
-    restart: always
+    restart: unless-stopped
     environment:
       RUN_MODE: worker
       CONFIG_PATH: ./config/config.yml
@@ -65,7 +65,7 @@ services:
   db:
     container_name: edge_auctions_db
     image: postgres:alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -79,7 +79,7 @@ services:
   redis:
     container_name: edge_auctions_redis
     image: bitnami/redis:latest
-    restart: always
+    restart: unless-stopped
     environment:
       ALLOW_EMPTY_PASSWORD: true
     volumes:
@@ -89,7 +89,7 @@ services:
   client:
     container_name: edge_auctions_nginx
     image: nginx:latest
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt

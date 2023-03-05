@@ -1,13 +1,17 @@
-from functools import lru_cache
 from traceback import print_exception
 
 from authlib.integrations.flask_client import OAuth
+from authlib.oauth2.rfc7523.validator import JWTBearerToken
 from flask import Request
 
 from auctions.config import Config
+from auctions.db.models.enum import AuthAppType
 from auctions.db.models.users import User
 from auctions.db.repositories.users import UsersRepository
 from auctions.dependencies import Provide
+from auctions.exceptions import BadRequestError
+from auctions.exceptions import ForbiddenError
+from auctions.exceptions import NotAuthorizedError
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import UserAlreadyExists
 
@@ -32,10 +36,20 @@ class UsersService:
 
         return auth_header_value[7:]
 
-    @lru_cache()
-    def get_current_user(self, request: Request) -> User | None:
-        token = self._get_token_from_request(request)
-        return self.get_user(token)
+    @staticmethod
+    def _validate_user_app_permissions(user: User, app_type: AuthAppType) -> None:
+        if app_type == AuthAppType.ADMIN and not user.is_admin:
+            raise ForbiddenError("Insufficient permissions")
+
+    def get_user_by_token(self, token: JWTBearerToken) -> User | None:
+        if "sub" not in token or "app" not in token:
+            raise NotAuthorizedError("Invalid access token")
+
+        user = self.get_user(token.sub)
+
+        self._validate_user_app_permissions(user, token["app"])
+
+        return user
 
     def get_user(self, user_id: str) -> User | None:
         try:

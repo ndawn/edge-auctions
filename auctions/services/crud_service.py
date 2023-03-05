@@ -24,14 +24,6 @@ from auctions.exceptions import ObjectDoesNotExist
 
 
 class CRUDServiceProvider:
-    __instance = None
-
-    def __new__(cls, *args, **kwargs) -> "CRUDServiceProvider":  # pylint: disable=unused-argument
-        if cls.__instance is None:
-            cls.__instance = super().__new__(cls)
-
-        return cls.__instance
-
     def __init__(
         self,
         auction_sets_repository: AuctionSetsRepository = Provide(),
@@ -46,18 +38,18 @@ class CRUDServiceProvider:
         users_repository: UsersRepository = Provide(),
     ) -> None:
         self.cache = {}
-        self.repositories = [
-            auction_sets_repository,
-            auctions_repository,
-            bids_repository,
-            images_repository,
-            item_types_repository,
-            items_repository,
-            price_categories_repository,
-            supply_sessions_repository,
-            templates_repository,
-            users_repository,
-        ]
+        self.repositories = {
+            auction_sets_repository.model: auction_sets_repository,
+            auctions_repository.model: auctions_repository,
+            bids_repository.model: bids_repository,
+            images_repository.model: images_repository,
+            item_types_repository.model: item_types_repository,
+            items_repository.model: items_repository,
+            price_categories_repository.model: price_categories_repository,
+            supply_sessions_repository.model: supply_sessions_repository,
+            templates_repository.model: templates_repository,
+            users_repository.model: users_repository,
+        }
 
     def __call__(self, model: type[Model]) -> "CRUDService":
         if model not in self.cache:
@@ -66,11 +58,10 @@ class CRUDServiceProvider:
         return self.cache[model]
 
     def get_repository(self, model: type[Model]) -> Repository:
-        for repository in self.repositories:
-            if repository.model is model:
-                return repository
-
-        raise ObjectDoesNotExist(f"No repository found for model {model}")
+        try:
+            return self.repositories[model]
+        except KeyError as exception:
+            raise ObjectDoesNotExist(f"No repository found for model {model}") from exception
 
 
 class CRUDService:
@@ -101,8 +92,8 @@ class CRUDService:
         self.repository.update(instance, **kwargs)
         return instance
 
-    def delete(self, id_: int | Iterable[int]) -> None:
-        if isinstance(id_, int):
+    def delete(self, id_: int | str | Iterable[int] | Iterable[str]) -> None:
+        if isinstance(id_, (int, str)):
             ids = [id_]
         else:
             ids = id_

@@ -15,6 +15,11 @@ class AuctionSet(db.Model):
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     date_due: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
     anti_sniper: Mapped[int] = db.Column(db.Integer)
-    auctions: Mapped[list["Auction"]] = db.relationship("Auction", back_populates="set")
-    started_at: Mapped[datetime | None] = db.Column(db.DateTime(timezone=True), nullable=True)
-    ended_at: Mapped[datetime | None] = db.Column(db.DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
+    is_published: Mapped[bool] = db.Column(db.Boolean(), default=False)
+
+    auctions: Mapped[list["Auction"]] = db.relationship(
+        "Auction",
+        back_populates="set",
+        order_by="desc(Auction.date_due)",
+    )

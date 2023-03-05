@@ -1,3 +1,5 @@
+from typing import Self
+
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
 
@@ -15,6 +17,7 @@ from auctions.db.repositories.base import Repository
 
 class AuctionSetsRepository(Repository[AuctionSet]):
     model_id = "set_id"
+    current_user: User | None = None
 
     @property
     def model(self) -> type[AuctionSet]:
@@ -32,5 +35,37 @@ class AuctionSetsRepository(Repository[AuctionSet]):
             .outerjoin(SupplySession, Item.session_id == SupplySession.id)
             .outerjoin(Image, Item.id == Image.item_id)
             .outerjoin(bids_next_bid, Bid.next_bid_id == bids_next_bid.id)
-            .outerjoin(User, Bid.bidder_id == User.id)
+            .outerjoin(User, Bid.user_id == User.id)
         )
+
+    def _enrich_with_user_data(self, sets: list[AuctionSet]) -> list[AuctionSet]:
+        for auction_set in sets:
+            for auction in auction_set.auctions:
+                auction.is_last_bid_own = auction.get_is_last_bid_own(self.current_user)
+
+        return sets
+
+    def get_many(self, *args, **kwargs) -> list[AuctionSet]:
+        auction_sets = super().get_many(*args, **kwargs)
+        self._enrich_with_user_data(auction_sets)
+        return auction_sets
+
+    def get_one(self, *args, **kwargs) -> AuctionSet:
+        auction_set = super().get_one(*args, **kwargs)
+        self._enrich_with_user_data([auction_set])
+        return auction_set
+
+    def get_one_by_id(self, *args, **kwargs) -> AuctionSet:
+        auction_set = super().get_one_by_id(*args, **kwargs)
+        self._enrich_with_user_data([auction_set])
+        return auction_set
+
+    def with_user(self, user: User) -> Self:
+        self.current_user = user
+        return self
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.current_user = None

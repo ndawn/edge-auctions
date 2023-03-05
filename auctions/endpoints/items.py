@@ -6,11 +6,11 @@ from auctions.db.models.items import Item
 from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.endpoints.crud import create_crud_blueprint
-from auctions.serializers.delete_object import DeleteObjectSerializer
 from auctions.serializers.items import ItemCountersSerializer
 from auctions.serializers.items import ItemFilterRequestSerializer
 from auctions.serializers.items import ItemIdsSerializer
 from auctions.serializers.items import ItemSerializer
+from auctions.serializers.ok import OkSerializer
 from auctions.services.items_service import ItemsService
 from auctions.utils.error_handler import with_error_handler
 from auctions.utils.login import login_required
@@ -116,8 +116,8 @@ def update_item(
 def delete_items(
     items_service: ItemsService = Provide(),
     item_ids_serializer: ItemIdsSerializer = Provide(),
-    delete_object_serializer: DeleteObjectSerializer = Provide(),
+    ok_serializer: OkSerializer = Provide(),
 ) -> JsonResponse:
     args = parser.parse(item_ids_serializer, request)
     items_service.delete_items(args.get("item_ids"))
-    return JsonResponse(delete_object_serializer.dump(None))
+    return JsonResponse(ok_serializer.dump(None))

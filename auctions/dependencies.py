@@ -105,8 +105,3 @@ def inject(func: callable) -> callable:
         return result
 
     return decorated
-
-
-def injectable(cls: Injectable) -> Injectable:
-    cls.__injectable__ = True
-    return cls

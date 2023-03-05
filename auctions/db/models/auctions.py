@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from auctions.db.models.auction_sets import AuctionSet
     from auctions.db.models.bids import Bid
     from auctions.db.models.items import Item
+    from auctions.db.models.users import User
 
 
 class Auction(db.Model):
@@ -21,19 +22,32 @@ class Auction(db.Model):
     item_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("items.id", ondelete="RESTRICT"))
     item: Mapped["Item"] = db.relationship("Item", foreign_keys="Auction.item_id")
     date_due: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
-    buy_now_price: Mapped[int | None] = db.Column(db.Integer, nullable=True)
-    buy_now_expires: Mapped[int | None] = db.Column(db.Integer, nullable=True)
-    bid_start_price: Mapped[int] = db.Column(db.Integer, default=0)
-    bid_min_step: Mapped[int] = db.Column(db.Integer, default=0)
-    bid_multiple_of: Mapped[int] = db.Column(db.Integer, default=0)
-    is_active: Mapped[bool] = db.Column(db.Boolean, default=True)
-    started_at: Mapped[datetime | None] = db.Column(db.DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = db.Column(db.DateTime(timezone=True), nullable=True)
+    invoice_id: Mapped[int | None] = db.Column(db.Integer, nullable=True)
+    invoice_link: Mapped[str | None] = db.Column(db.Text, nullable=True)
 
-    bids: Mapped[list["Bid"]] = db.relationship("Bid", back_populates="auction")
+    bids: Mapped[list["Bid"]] = db.relationship("Bid", back_populates="auction", order_by="desc(Bid.created_at)",)
+
+    last_bid_value: int | None
+    is_last_bid_own: bool
 
     def get_last_bid(self) -> Optional["Bid"]:
         for bid in self.bids:
             if bid.next_bid is None:
                 return bid
         return None
+
+    def involves_user(self, user: "User") -> bool:
+        for bid in self.bids:
+            if bid.user_id == user.id:
+                return True
+
+        return False
+
+    def get_is_last_bid_own(self, user: Optional["User"]) -> bool:
+        last_bid = self.get_last_bid()
+
+        if last_bid is None or user is None:
+            return False
+
+        return user.id == last_bid.user.id

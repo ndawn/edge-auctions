@@ -5,12 +5,14 @@ from webargs import fields
 from webargs.flaskparser import parser
 
 from auctions.db.models.auction_sets import AuctionSet
+from auctions.db.models.users import User
 from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.endpoints.crud import create_crud_blueprint
 from auctions.serializers.auction_sets import AuctionSetCreateSerializer
 from auctions.serializers.auction_sets import AuctionSetSerializer
-from auctions.serializers.delete_object import DeleteObjectSerializer
+from auctions.serializers.auction_sets import BriefAuctionSetSerializer
+from auctions.serializers.ok import OkSerializer
 from auctions.services.auctions_service import AuctionsService
 from auctions.services.export_service import ExportService
 from auctions.utils.error_handler import with_error_handler
@@ -24,33 +26,9 @@ blueprint = create_crud_blueprint(
         "page": fields.Int(required=False, default=0),
         "page_size": fields.Int(required=False, default=50),
     },
-    operations=("read",),
-    protected=("read",),
+    operations=("list", "read"),
+    protected=("list", "read"),
 )
-
-
-@blueprint.get("/active")
-@with_error_handler
-@login_required()
-@inject
-def search_active_auction_set(
-    auctions_service: AuctionsService = Provide(),
-    auction_set_serializer: AuctionSetSerializer = Provide(),
-) -> JsonResponse:
-    auction_set = auctions_service.get_active_auction_set()
-    return JsonResponse(auction_set_serializer.dump(auction_set))
-
-
-@blueprint.get("/archived")
-@with_error_handler
-@login_required()
-@inject
-def list_archived_auction_sets(
-    auctions_service: AuctionsService = Provide(),
-    auction_set_serializer: AuctionSetSerializer = Provide(),
-) -> JsonResponse:
-    auction_sets = auctions_service.list_archived_auction_sets()
-    return JsonResponse(auction_set_serializer.dump(auction_sets, many=True))
 
 
 @blueprint.post("/")
@@ -71,29 +49,29 @@ def create_auction_set(
     return JsonResponse(auction_set_serializer.dump(auction_set))
 
 
-@blueprint.post("/<int:id_>/start")
+@blueprint.post("/<int:id_>/publish")
 @with_error_handler
 @login_required()
 @inject
-def start_auction_set(
+def publish_auction_set(
     id_: int,
     auctions_service: AuctionsService = Provide(),
     auction_set_serializer: AuctionSetSerializer = Provide(),
 ) -> JsonResponse:
-    auction_set = auctions_service.start_auction_set(id_)
+    auction_set = auctions_service.publish_auction_set(id_)
     return JsonResponse(auction_set_serializer.dump(auction_set))
 
 
-@blueprint.post("/<int:id_>/close")
+@blueprint.post("/<int:id_>/unpublish")
 @with_error_handler
 @login_required()
 @inject
-def close_auction_set(
+def unpublish_auction_set(
     id_: int,
     auctions_service: AuctionsService = Provide(),
     auction_set_serializer: AuctionSetSerializer = Provide(),
 ) -> JsonResponse:
-    auction_set = auctions_service.close_auction_set(id_)
+    auction_set = auctions_service.unpublish_auction_set(id_)
     return JsonResponse(auction_set_serializer.dump(auction_set))
 
 
@@ -114,7 +92,7 @@ def export_empty_auctions(id_: int, export_service: ExportService = Provide()) -
 def delete_auction_set(
     id_: int,
     auctions_service: AuctionsService = Provide(),
-    delete_object_serializer: DeleteObjectSerializer = Provide(),
+    ok_serializer: OkSerializer = Provide(),
 ) -> JsonResponse:
     auctions_service.delete_auction_set(id_)
-    return JsonResponse(delete_object_serializer.dump(None))
+    return JsonResponse(ok_serializer.dump(None))

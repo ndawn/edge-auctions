@@ -2,16 +2,18 @@ import os
 import subprocess
 import sys
 
-from argon2 import PasswordHasher
 from authlib.integrations.flask_client import OAuth
 from dramatiq import set_broker
-from flask import Flask
+from dramatiq.brokers.redis import RedisBroker
 from flask import jsonify
+from flask import Flask
+from flask_apscheduler import APScheduler
 
 from auctions.config import Config
-from auctions.dependencies import DependencyProvider
+from auctions.dependencies import provider
 from auctions.endpoints import root_blueprint
-from auctions.tasks import create_broker
+from auctions.jobs import periodic_auction_set_check
+from auctions.jobs import periodic_invoice_check
 from auctions.utils.app import create_base_app
 from auctions.utils.login import require_auth
 from auctions.utils.token_validator import Auth0JWTBearerTokenValidator
@@ -26,12 +28,20 @@ def create_oauth(app: Flask, config: Config) -> OAuth:
     oauth = OAuth(app)
 
     oauth.register(
-        "auth0",
-        client_id=config.auth0_client_id,
-        client_secret=config.auth0_client_secret,
+        "edge_auctions_admin",
+        client_id=config.auth0_admin_client_id,
+        client_secret=config.auth0_admin_client_secret,
         client_kwargs={"scope": "openid profile email"},
         server_metadata_url=f"https://{config.auth0_domain}/.well-known/openid-configuration",
     )
+
+    # oauth.register(
+    #     "edge_auctions",
+    #     client_id=config.auth0_client_id,
+    #     client_secret=config.auth0_client_secret,
+    #     client_kwargs={"scope": "openid profile email"},
+    #     server_metadata_url=f"https://{config.auth0_domain}/.well-known/openid-configuration",
+    # )
 
     validator = Auth0JWTBearerTokenValidator(config.auth0_domain, config.auth0_api_identifier)
     require_auth.register_token_validator(validator)
@@ -39,17 +49,21 @@ def create_oauth(app: Flask, config: Config) -> OAuth:
     return oauth
 
 
+def create_scheduler(app: Flask, config: Config) -> APScheduler:
+    scheduler = APScheduler(app=app)
+    scheduler.task("interval", id="periodic_auction_set_check", seconds=10, max_instances=1)(periodic_auction_set_check)
+    scheduler.task("interval", id="periodic_invoice_check", seconds=30, max_instances=1)(periodic_invoice_check)
+
+    return scheduler
+
+
 def create_app(config: Config) -> Flask:
     app = create_base_app(config)
     oauth = create_oauth(app, config)
-    broker = create_broker(config)
+    broker = RedisBroker(url=config.broker_url)
     set_broker(broker)
 
-    provider = DependencyProvider()
-
-    provider.add_global(config)
     provider.add_global(oauth)
-    provider.add_global(PasswordHasher())
 
     @app.errorhandler(422)
     @app.errorhandler(405)
@@ -78,20 +92,22 @@ def create_app(config: Config) -> Flask:
 def run_app(config: Config) -> None:
     app = create_app(config)
 
-    if config.debug:
-        CORS(app)
-        app.run(debug=config.debug, host="0.0.0.0")
-    else:
-        run_configured(app)
+    scheduler = create_scheduler(app, config)
+    scheduler.start()
+
+    try:
+        if config.debug:
+            CORS(app)
+            app.run(debug=not config.debug, host="0.0.0.0")
+        else:
+            run_configured(app)
+    except (KeyboardInterrupt, SystemExit):
+        scheduler.shutdown()
 
 
 def run_worker(config: Config) -> None:
-    result = subprocess.run([
-        "dramatiq",
-        "--log-file",
-        str(config.tasks_log_path),
-        "auctions.tasks",
-    ])
+    result = subprocess.Popen(["dramatiq", "auctions.tasks"], shell=True)
+    result.wait()
     sys.exit(result.returncode)
 
 

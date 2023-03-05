@@ -1,3 +1,5 @@
+import os
+
 from auctions.db.models.images import Image
 from auctions.db.repositories.base import Repository
 
@@ -15,7 +17,7 @@ class ImagesRepository(Repository[Image]):
 
         for instance in instances:
             for path in instance.urls.values():
-                if path:
-                    path.unlink(missing_ok=True)
+                if path and os.path.exists(path):
+                    os.unlink(path)
 
         super().delete(instances)

@@ -11,9 +11,9 @@ from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import SessionStartFailed
-from auctions.serializers.delete_object import DeleteObjectSerializer
 from auctions.serializers.items import ItemJoinData
 from auctions.serializers.items import ItemSerializer
+from auctions.serializers.ok import OkSerializer
 from auctions.serializers.sessions import SupplySessionSerializer
 from auctions.services.supply_service import SupplyService
 from auctions.utils.error_handler import with_error_handler
@@ -140,7 +140,7 @@ def apply_session(
 @inject
 def discard_session(
     supply_service: SupplyService = Provide(),
-    delete_object_serializer: DeleteObjectSerializer = Provide(),
+    ok_serializer: OkSerializer = Provide(),
 ) -> JsonResponse:
     supply_service.discard_session()
-    return JsonResponse(delete_object_serializer.dump(None))
+    return JsonResponse(ok_serializer.dump(None))

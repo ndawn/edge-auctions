@@ -12,8 +12,6 @@ from marshmallow import EXCLUDE
 from yaml import FullLoader
 from yaml import load
 
-from auctions.dependencies import injectable
-
 
 def serialize_path(obj: Path | None) -> str | None:
     if obj is None:
@@ -46,9 +44,17 @@ class SecretConfigSchema(Schema):
     db_url = fields.Str(required=True, data_key="DB_URL")
     broker_url = fields.Str(required=True, data_key="BROKER_URL")
     result_backend_url = fields.Str(required=True, data_key="RESULT_BACKEND_URL")
-    shop_secret = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_SECRET")
-    auth0_client_id = fields.Str(required=True, data_key="AUTH0_CLIENT_ID")
-    auth0_client_secret = fields.Str(required=True, data_key="AUTH0_CLIENT_SECRET")
+    password_key = fields.Str(required=True, data_key="PASSWORD_KEY")
+    vapid_public_key = fields.Str(required=True, data_key="VAPID_PUBLIC_KEY")
+    vapid_private_key = fields.Str(required=True, data_key="VAPID_PRIVATE_KEY")
+    vapid_sub = fields.Str(required=True, data_key="VAPID_SUB")
+    shop_id = fields.Str(required=True, data_key="SHOP_ID")
+    shop_api_key = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_API_KEY")
+    shop_api_secret = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_API_SECRET")
+    auth0_admin_client_id = fields.Str(required=True, data_key="AUTH0_ADMIN_CLIENT_ID")
+    auth0_admin_client_secret = fields.Str(required=True, data_key="AUTH0_ADMIN_CLIENT_SECRET")
+    auth0_management_client_id = fields.Str(required=True, data_key="AUTH0_MANAGEMENT_CLIENT_ID")
+    auth0_management_client_secret = fields.Str(required=True, data_key="AUTH0_MANAGEMENT_CLIENT_SECRET")
     auth0_domain = fields.Str(required=True, data_key="AUTH0_DOMAIN")
     auth0_api_identifier = fields.Str(required=True, data_key="AUTH0_API_IDENTIFIER")
     auth0_app_secret_key = fields.Str(required=True, data_key="AUTH0_APP_SECRET_KEY")
@@ -68,6 +74,9 @@ class ConfigSchema(Schema):
     full_images_path = fields.Function(serialize=serialize_path, deserialize=deserialize_path, required=True)
     thumbnails = fields.Dict(fields.Str(), fields.Nested(ThumbTypeSchema), required=True)
     default_timezone = fields.Str(required=True)
+    email_sender = fields.Str(required=True)
+    email_subject = fields.Str(required=True)
+    email_templates_path = fields.Function(serialize=serialize_path, deserialize=deserialize_path, required=True)
     separators_path = fields.Function(serialize=serialize_path, deserialize=deserialize_path, required=True)
     separators_generated_path = fields.Function(serialize=serialize_path, deserialize=deserialize_path, required=True)
     separators_text_file_path = fields.Function(serialize=serialize_path, deserialize=deserialize_path, required=True)
@@ -84,6 +93,10 @@ class ConfigSchema(Schema):
             fields.Int(validate=validate.Range(min=0), required=True),
         )
     )
+    shop_category_id = fields.Int(required=True)
+    shop_delivery_variant_id = fields.Int(required=True)
+    shop_payment_gateway_id = fields.Int(required=True)
+    shop_order_status_permalink = fields.Str(required=True)
     tasks_queue_name = fields.Str(required=True)
     tasks_log_path = fields.Str(required=True)
     tasks_log_level = fields.Str(required=True)
@@ -95,7 +108,6 @@ def _create_dirs(dirs) -> None:
             os.mkdir(path)
 
 
-@injectable
 @dataclass
 class Config:
     db_url: str
@@ -109,6 +121,9 @@ class Config:
     full_images_path: Path
     thumbnails: dict[str, ...]
     default_timezone: str
+    email_sender: str
+    email_subject: str
+    email_templates_path: Path
     separators_path: Path
     separators_generated_path: Path
     separators_text_file_path: Path
@@ -118,9 +133,22 @@ class Config:
     tasks_queue_name: str
     tasks_log_path: Path
     tasks_log_level: str
-    shop_secret: str
-    auth0_client_id: str
-    auth0_client_secret: str
+    password_key: bytes
+    vapid_public_key: str
+    vapid_private_key: str
+    vapid_sub: str
+    # vapid_aud: str
+    shop_id: str
+    shop_api_key: str
+    shop_api_secret: str
+    shop_category_id: int
+    shop_delivery_variant_id: int
+    shop_payment_gateway_id: int
+    shop_order_status_permalink: str
+    auth0_admin_client_id: str
+    auth0_admin_client_secret: str
+    auth0_management_client_id: str
+    auth0_management_client_secret: str
     auth0_domain: str
     auth0_api_identifier: str
     auth0_app_secret_key: str
@@ -143,11 +171,16 @@ class Config:
 
         secret_config = SecretConfigSchema().load(os.environ)
         config |= secret_config
+        config["password_key"] = bytes.fromhex(config["password_key"])
+
+        assert os.path.isfile(config["vapid_public_key"]), "Please provide a proper path to a public key file"
+        assert os.path.isfile(config["vapid_private_key"]), "Please provide a proper path to a private key file"
 
         _create_dirs([
             config["assets_path"],
             config["images_path"],
             config["full_images_path"],
+            config["email_templates_path"],
             config["separators_path"],
             config["separators_generated_path"],
             *(thumbnail_path["path"] for thumbnail_path in config["thumbnails"].values()),

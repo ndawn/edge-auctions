@@ -1,7 +1,7 @@
 from base64 import b64encode
-from hashlib import md5
 from hashlib import sha256
 from hmac import HMAC
+from secrets import token_urlsafe
 from urllib.parse import urlencode
 
 from argon2 import PasswordHasher
@@ -9,11 +9,18 @@ from argon2.exceptions import VerifyMismatchError
 
 from auctions.config import Config
 from auctions.dependencies import Provide
+from auctions.utils.cipher import AESCipher
 
 
 class PasswordService:
-    def __init__(self, password_hasher: PasswordHasher = Provide(), config: Config = Provide()) -> None:
+    def __init__(
+        self,
+        password_hasher: PasswordHasher = Provide(),
+        password_cipher: AESCipher = Provide(),
+        config: Config = Provide(),
+    ) -> None:
         self.hasher = password_hasher
+        self.cipher = password_cipher
         self.config = config
 
     def check_password(self, password: str, hashed_password: str) -> bool:
@@ -22,12 +29,18 @@ class PasswordService:
         except VerifyMismatchError:
             return False
 
-    def generate_shop_password(self, token: str) -> str:
-        sequence = (self.config.shop_secret + token).encode("utf-8")
-        return md5(sequence).hexdigest()
-
     def hash_password(self, password: str) -> str:
         return self.hasher.hash(password)
+
+    def encrypt_password(self, password: str) -> str:
+        return self.cipher.encrypt(password)
+
+    def decrypt_password(self, ciphertext: str) -> str:
+        return self.cipher.decrypt(ciphertext)
+
+    @staticmethod
+    def generate_client_password() -> str:
+        return token_urlsafe()
 
     @staticmethod
     def verify_vk_signature(query: dict[str, ...], client_secret: str) -> bool:

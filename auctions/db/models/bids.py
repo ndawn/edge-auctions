@@ -1,7 +1,10 @@
+from datetime import datetime
+from datetime import timezone
 from typing import TYPE_CHECKING
 from typing import Optional
 
 from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy.sql import func
 
 from auctions.db import db
 
@@ -22,4 +25,10 @@ class Bid(db.Model):
     is_sniped: Mapped[bool] = db.Column(db.Boolean, default=False)
     is_buyout: Mapped[bool] = db.Column(db.Boolean, default=False)
     next_bid_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("bids.id"), nullable=True)
-    next_bid: Mapped[Optional["Bid"]] = db.relationship("Bid", foreign_keys="Bid.next_bid_id", join_depth=1)
+    next_bid: Mapped[Optional["Bid"]] = db.relationship(
+        "Bid",
+        uselist=False,
+        foreign_keys="Bid.next_bid_id",
+        join_depth=1,
+    )
+    created_at: Mapped[datetime] = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())

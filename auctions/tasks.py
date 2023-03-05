@@ -1,82 +1,103 @@
 import os
-from datetime import datetime
-from datetime import timezone
-from functools import wraps
+from traceback import print_exception
 
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
-from dramatiq.errors import Retry
-from dramatiq.middleware.group_callbacks import GroupCallbacks
-from dramatiq.rate_limits.backends.redis import RedisBackend as RedisRateLimiterBackend
-from dramatiq.results import Results
-from dramatiq.results.backends.redis import RedisBackend as RedisResultBackend
-from flask import Flask
-
 
 from auctions.config import Config
-from auctions.dependencies import DependencyProvider
+from auctions.db.models.auctions import Auction
+from auctions.db.models.auction_sets import AuctionSet
+from auctions.db.models.enum import EmailType
+from auctions.db.models.enum import PushEventType
+from auctions.db.repositories.auctions import AuctionsRepository
 from auctions.dependencies import inject
-from auctions.exceptions import AuctionReschedule
+from auctions.dependencies import Provide
+from auctions.exceptions import ObjectDoesNotExist
 from auctions.services.auctions_service import AuctionsService
+from auctions.services.email_service import EmailService
+from auctions.services.push_service import PushService
+from auctions.services.shop_connect_service import ShopConnectService
+from auctions.services.users_service import UsersService
 from auctions.utils.app import create_base_app
-
-
-broker = None
-
-
-def create_broker(config_: Config) -> dramatiq.Broker:
-    broker_ = RedisBroker(url=config_.broker_url)
-    backend = RedisResultBackend(url=config_.result_backend_url)
-    rate_limiter_backend = RedisRateLimiterBackend(url=config_.result_backend_url)
-    broker_.add_middleware(Results(backend=backend, result_ttl=config_.result_ttl_ms))
-    broker_.add_middleware(GroupCallbacks(rate_limiter_backend))
-
-    return broker_
-
-
-def with_app_context(app: Flask) -> callable:
-    def decorator(func: callable) -> callable:
-        @wraps(func)
-        def decorated(*args, **kwargs):
-            with app.app_context():
-                return func(*args, **kwargs)
-
-        return decorated
-
-    return decorator
+from auctions.utils.app import with_app_context
 
 
 @inject
-def close_auction(auction_id: int, auctions_service: AuctionsService) -> str:
+def try_close_auction_sets(auctions_service: AuctionsService = Provide()) -> None:
     try:
-        auction = auctions_service.close_auction(auction_id)
-        return str(auction.ended_at)
-    except AuctionReschedule as exception:
-        raise Retry(
-            message=str(exception),
-            delay=(exception.execute_at - datetime.now(timezone.utc)).seconds * 1000,
-        ) from exception
+        auction_sets = auctions_service.auction_sets_repository.get_many(AuctionSet.ended_at.is_(None))
+
+        for auction_set in auction_sets:
+            auctions_service.close_auction_set(auction_set)
+    except Exception as exception:
+        print_exception(type(exception), exception, exception.__traceback__)
 
 
 @inject
-def close_auction_set(set_id: int, auctions_service: AuctionsService) -> str:
+def create_invoice(
+    user_id: str,
+    auction_ids: list[int],
+    shop_connect_service: ShopConnectService = Provide(),
+    users_service: UsersService = Provide(),
+    auctions_repository: AuctionsRepository = Provide(),
+) -> None:
     try:
-        auction_set = auctions_service.close_auction_set(set_id)
-        return str(auction_set.ended_at)
-    except AuctionReschedule as exception:
-        raise Retry(
-            message=str(exception),
-            delay=(exception.execute_at - datetime.now(timezone.utc)).seconds * 1000,
-        ) from exception
+        user = users_service.get_user(user_id)
+        auctions = auctions_repository.get_many(ids=auction_ids)
+        shop_connect_service.create_invoice(user, auctions)
+    except Exception as exception:
+        print_exception(type(exception), exception, exception.__traceback__)
+
+
+@inject
+def check_invoices(
+    auctions_service: AuctionsService = Provide(),
+    auctions_repository: AuctionsRepository = Provide(),
+) -> None:
+    try:
+        auctions = auctions_repository.get_many(Auction.invoice_link.is_not(None))
+        auctions_service.check_invoices(auctions)
+    except Exception as exception:
+        print_exception(type(exception), exception, exception.__traceback__)
+
+
+@inject
+def send_push(
+    recipient_id: str,
+    event_type: PushEventType,
+    payload: ...,
+    users_service: UsersService = Provide(),
+    push_service: PushService = Provide(),
+) -> None:
+    try:
+        recipient = users_service.get_user(recipient_id)
+    except ObjectDoesNotExist:
+        return
+
+    push_service.send_event(recipient, event_type, payload)
+
+
+@inject
+def send_email(
+    recipient_id: str,
+    message_type: EmailType,
+    users_service: UsersService = Provide(),
+    email_service: EmailService = Provide(),
+) -> None:
+    try:
+        recipient = users_service.get_user(recipient_id)
+        email_service.send_email(recipient, message_type)
+    except Exception as exception:
+        print_exception(type(exception), exception, exception.__traceback__)
 
 
 if os.getenv("RUN_MODE", "") == "worker":
     config = Config.load(os.getenv("CONFIG_PATH", ""))
     app = create_base_app(config)
-    provider = DependencyProvider()
-    provider.add_global(config)
-    broker = create_broker(config)
+    broker = RedisBroker(url=config.broker_url)
     dramatiq.set_broker(broker)
 
-    close_auction = dramatiq.actor(store_results=True)(with_app_context(app)(close_auction))
-    close_auction_set = dramatiq.actor(store_results=True)(with_app_context(app)(close_auction_set))
+    try_close_auction_sets = dramatiq.actor(with_app_context(app)(try_close_auction_sets))
+    create_invoice = dramatiq.actor(with_app_context(app)(create_invoice))
+    check_invoices = dramatiq.actor(with_app_context(app)(check_invoices))
+    send_push = dramatiq.actor(with_app_context(app)(send_push))

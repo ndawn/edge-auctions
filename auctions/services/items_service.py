@@ -64,7 +64,8 @@ class ItemsService:
                     "count": price_categories_counters[price_category_id],
                 })
 
-            counters.append(counter)
+            if counter["prices"]:
+                counters.append(counter)
 
         return counters
 

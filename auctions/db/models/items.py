@@ -22,13 +22,13 @@ class Item(db.Model):
 
     id: Mapped[int] = db.Column(db.Integer, primary_key=True)
     name: Mapped[str] = db.Column(db.String(255), default="")
-    description: Mapped[str] = db.Column(db.Text, default="{{ name }}")
+    description: Mapped[str] = db.Column(db.Text, default="")
     wrap_to_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("templates.id"), nullable=True)
     wrap_to: Mapped[Optional["Template"]] = db.relationship("Template", foreign_keys="Item.wrap_to_id")
     type_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("item_types.id", ondelete="RESTRICT"))
     type: Mapped["ItemType"] = db.relationship("ItemType", foreign_keys="Item.type_id", back_populates="items")
-    upca: Mapped[str | None] = db.Column(db.String(12), nullable=True)
-    upc5: Mapped[str | None] = db.Column(db.String(5), nullable=True)
+    upca: Mapped[str | None] = db.Column(db.String(255), nullable=True)
+    upc5: Mapped[str | None] = db.Column(db.String(255), nullable=True)
     price_category_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("price_categories.id"), nullable=True)
     price_category: Mapped[Optional["PriceCategory"]] = db.relationship(
         "PriceCategory",
@@ -48,7 +48,7 @@ class Item(db.Model):
     parse_data: Mapped[dict[str, ...]] = db.Column(JSONB, server_default="{}")
 
     auction: Mapped[Optional["Auction"]] = db.relationship("Auction", back_populates="item", uselist=False)
-    images: Mapped[list["Image"]] = db.relationship("Image", back_populates="item")
+    images: Mapped[list["Image"]] = db.relationship("Image", back_populates="item", order_by="desc(Image.is_main)")
 
     @property
     def main_image(self) -> "Image":

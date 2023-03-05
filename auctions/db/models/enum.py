@@ -1,6 +1,28 @@
 from enum import Enum
 
 
+class AuthAppType(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+    UNKNOWN = "unknown"
+
+
+class ShopClientType(str, Enum):
+    INDIVIDUAL = "Client::Individual"
+    JURIDICAL = "Client::Juridical"
+
+
+class PushEventType(str, Enum):
+    AUCTION_DATE_DUE_UPDATED = "auctionDateDueUpdated"
+    AUCTION_BID_CREATED = "auctionBidCreated"
+    AUCTION_BID_BEATEN = "auctionBidBeaten"
+    AUCTION_WON = "auctionWon"
+
+
+class EmailType(str, Enum):
+    WON_NO_ADDRESS = "won_no_address"
+
+
 class SortOrder(Enum):
     ASC = "asc"
     DESC = "desc"
@@ -28,7 +50,8 @@ class BidValidationResult(Enum):
 
 
 class CreateBidFailReason(Enum):
-    INVALID_BID = "invalid_bid"
-    INVALID_BUYOUT = "invalid_buyout"
-    INVALID_BEATING = "invalid_beating"
-    AUCTION_NOT_ACTIVE = "auction_not_active"
+    OWN_BID = "ownBid"
+    INVALID_BID = "invalidBid"
+    INVALID_BUYOUT = "invalidBuyout"
+    INVALID_BEATING = "invalidBeating"
+    AUCTION_NOT_ACTIVE = "auctionNotActive"

@@ -1,4 +1,9 @@
 .idea/
+.fleet/
+db/
+images/
+redis/
+sockets/
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 

@@ -9,10 +9,15 @@ class AuctionSetCreateSerializer(BaseSerializer):
     item_ids = fields.List(fields.Int(), required=True, data_key="itemIds")
 
 
-class AuctionSetSerializer(BaseSerializer):
-    id = fields.Int(dump_only=True)
+class BriefAuctionSetSerializer(BaseSerializer):
     date_due = fields.DateTime(required=True, data_key="dateDue")
     anti_sniper = fields.Int(required=True, data_key="antiSniper")
+
+    auctions = fields.Nested("BriefAuctionSerializer", exclude=("set",), many=True, dump_only=True)
+
+
+class AuctionSetSerializer(BriefAuctionSetSerializer):
+    id = fields.Int(dump_only=True)
+    is_published = fields.Boolean(required=True, data_key="isPublished")
+
     auctions = fields.Nested("AuctionSerializer", exclude=("set",), many=True, dump_only=True)
-    started_at = fields.DateTime(dump_only=True, data_key="startedAt")
-    ended_at = fields.DateTime(dump_only=True, data_key="endedAt")

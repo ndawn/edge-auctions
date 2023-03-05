@@ -69,12 +69,12 @@ class ParseService:
         if parsed_data.get("series_name") and parsed_data.get("issue_number"):
             item.name = f'{parsed_data["series_name"]} #{parsed_data["issue_number"]}'.upper()
 
-        item.parse_data["description"] = parsed_data.get("description", "")
         item.parse_data["publisher"] = parsed_data.get("publisher")
         item.parse_data["release_date"] = parsed_data.get("release_date")
         item.parse_data["cover_price"] = parsed_data.get("cover_price")
         item.parse_data["condition_prices"] = parsed_data.get("condition_prices", {})
         item.parse_data["related_links"] = parsed_data.get("related_links", [])
+        item.description = parsed_data.get("description", "")
         item.price_category = item.session.item_type.price_category
 
         if item.price_category is None:

@@ -9,7 +9,7 @@ from auctions.db.repositories.base import Model
 from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.serializers.base import BaseSerializer
-from auctions.serializers.delete_object import DeleteObjectSerializer
+from auctions.serializers.ok import OkSerializer
 from auctions.services.crud_service import CRUDServiceProvider
 from auctions.utils.error_handler import with_error_handler
 from auctions.utils.login import login_required
@@ -46,6 +46,7 @@ def create_crud_blueprint(
         "update",
         "delete",
     ),
+    non_int_id: bool = False,
 ) -> Blueprint:
     name_singular = to_snake_case(model.__name__)
     name_plural = model.__tablename__
@@ -101,26 +102,31 @@ def create_crud_blueprint(
         *,
         id_: int,
         crud_service: CRUDServiceProvider = Provide(),
-        delete_object_serializer: DeleteObjectSerializer = Provide(),
+        ok_serializer: OkSerializer = Provide(),
     ) -> JsonResponse:
         crud_service(model).delete(id_)
-        return JsonResponse(delete_object_serializer.dump(None))
+        return JsonResponse(ok_serializer.dump(None))
 
     operations_spec = {
         "list": (list_objects, f"list_{name_plural}", blueprint.get, ""),
-        "read": (get_object, f"get_{name_singular}", blueprint.get, "/<int:id_>"),
+        "read": (
+            get_object,
+            f"get_{name_singular}",
+            blueprint.get,
+            "/<id_>" if non_int_id else "/<int:id_>",
+        ),
         "create": (create_object, f"create_{name_singular}", blueprint.post, ""),
         "update": (
             update_object,
             f"update_{name_singular}",
             blueprint.put,
-            "/<int:id_>",
+            "/<id_>" if non_int_id else "/<int:id_>",
         ),
         "delete": (
             delete_object,
             f"delete_{name_singular}",
             blueprint.delete,
-            "/<int:id_>",
+            "/<id_>" if non_int_id else "/<int:id_>",
         ),
     }
 

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from auctions.db.models.enum import CreateBidFailReason
 
 
@@ -97,10 +95,6 @@ class SessionApplyFailed(ConflictError):
     default_message: str = "Session apply failed"
 
 
-class AuctionSetStartFailed(ConflictError):
-    default_message: str = "Auction set is already started or ended"
-
-
 class AuctionSetEndFailed(ConflictError):
     default_message: str = "Auction set is already ended"
 
@@ -109,16 +103,10 @@ class AuctionCloseFailed(ConflictError):
     default_message: str = "Auction is already ended or is not started yet"
 
 
-class AuctionReschedule(Exception):
-    def __init__(self, execute_at: datetime):
-        Exception.__init__(self)
-        self.execute_at = execute_at
-
-
 class CreateBidFailed(ConflictError):
     default_message: str = "Bid creation failed"
 
     def __init__(self, reason: CreateBidFailReason, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.message = self.default_message
-        self.reason = reason
+        self.extra = {"reason": reason.value}
