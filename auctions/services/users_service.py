@@ -37,7 +37,10 @@ class UsersService:
         return auth_header_value[7:]
 
     @staticmethod
-    def _validate_user_app_permissions(user: User, app_type: AuthAppType) -> None:
+    def _validate_user_app_permissions(user: User | None, app_type: AuthAppType) -> None:
+        if user is None:
+            raise NotAuthorizedError("Invalid access token")
+
         if app_type == AuthAppType.ADMIN and not user.is_admin:
             raise ForbiddenError("Insufficient permissions")
 
