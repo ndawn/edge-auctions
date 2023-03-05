@@ -98,7 +98,7 @@ def run_app(config: Config) -> None:
     try:
         if config.debug:
             CORS(app)
-            app.run(debug=not config.debug, host="0.0.0.0")
+            app.run(debug=config.debug, host="0.0.0.0")
         else:
             run_configured(app)
     except (KeyboardInterrupt, SystemExit):
