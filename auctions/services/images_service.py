@@ -70,6 +70,8 @@ class ImagesService:
                 path.unlink(missing_ok=True)
 
             raise
+        finally:
+            gc.collect()
 
     @staticmethod
     def save_and_normalize(file: FileStorage, save_path: Path) -> None:
