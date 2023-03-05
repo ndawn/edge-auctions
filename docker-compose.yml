@@ -37,6 +37,8 @@ services:
       - ./logs:/app/logs
       - ./images:/app/images
       - ./config:/app/config
+      - ./private_key.txt:/app/private_key.txt
+      - ./public_key.txt:/app/public_key.txt
     depends_on:
       - db
       - dramatiq
@@ -76,6 +78,8 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./config:/app/config
+      - ./private_key.txt:/app/private_key.txt
+      - ./public_key.txt:/app/public_key.txt
     depends_on:
       - redis
     networks:
