@@ -101,7 +101,7 @@ class AuthService:
                     phone=user_info.phone,
                     first_name=user_info.name,
                     last_name=user_info.surname,
-                    full_name=user_info,
+                    full_name=user_info.full_name,
                     address=user_info.default_address["full_delivery_address"],
                     password=auth0_user.password,
                 )
