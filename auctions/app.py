@@ -106,9 +106,7 @@ def run_app(config: Config) -> None:
 
 
 def run_worker(config: Config) -> None:
-    result = subprocess.Popen(["dramatiq", "auctions.tasks"], shell=True)
-    result.wait()
-    sys.exit(result.returncode)
+    sys.exit(subprocess.run(["dramatiq", "auctions.tasks"], shell=True))
 
 
 def main() -> None:
