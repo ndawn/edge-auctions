@@ -1,3 +1,5 @@
+import json
+from base64 import b64decode
 from traceback import print_exception
 
 from auth0.exceptions import Auth0Error
@@ -65,6 +67,15 @@ class AuthService:
         return reply_token, payload.continue_uri
 
     def login_from_shop(self, login_data: dict[str, ...]) -> tuple[User, str, str]:
+        try:
+            login_data["default_address"] = json.loads(
+                b64decode(
+                    login_data.get("default_address", "").encode("utf-8")
+                ).decode("utf-8")
+            )
+        except:
+            login_data["default_address"] = None
+
         user_info = self.shop_connect_service.authenticate(login_data)
 
         try:
