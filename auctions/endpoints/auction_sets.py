@@ -31,7 +31,7 @@ blueprint = create_crud_blueprint(
 )
 
 
-@blueprint.post("/")
+@blueprint.post("")
 @with_error_handler
 @login_required()
 @inject
