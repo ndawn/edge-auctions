@@ -1,7 +1,9 @@
 import logging
 
+import dramatiq
 from apscheduler.schedulers import SchedulerNotRunningError
 from apscheduler.schedulers.blocking import BlockingScheduler
+from dramatiq.brokers.redis import RedisBroker
 
 from auctions.config import Config
 from auctions.jobs import periodic_auction_set_check
@@ -9,6 +11,9 @@ from auctions.jobs import periodic_invoice_check
 
 
 def create_scheduler(config: Config) -> BlockingScheduler:
+    broker = RedisBroker(url=config.broker_url, middleware=[])
+    dramatiq.set_broker(broker)
+
     scheduler = BlockingScheduler()
     scheduler.add_job(
         periodic_auction_set_check,
