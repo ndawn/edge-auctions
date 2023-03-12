@@ -41,16 +41,57 @@ services:
       - ./public_key.txt:/app/public_key.txt
     depends_on:
       - db
-      - dramatiq
+      - queue
     networks:
       - bridge
-  dramatiq:
-    container_name: edge_auctions_dramatiq
+  queue:
+    container_name: edge_auctions_queue
     build: .
     env_file: .env
     restart: unless-stopped
     environment:
-      RUN_MODE: worker
+      RUN_MODE: queue
+      CONFIG_PATH: ./config/config.yml
+      DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@edge_auctions_db:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BROKER_URL: ${BROKER_URL}
+      RESULT_BACKEND_URL: ${RESULT_BACKEND_URL}
+      WS_CONNECTION_BROKER_URL: ${WS_CONNECTION_BROKER_URL}
+      PASSWORD_KEY: ${PASSWORD_KEY}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUB: ${VAPID_SUB}
+      SHOP_ID: ${SHOP_ID}
+      SHOP_API_KEY: ${SHOP_API_KEY}
+      SHOP_API_SECRET: ${SHOP_API_SECRET}
+      AUTH0_ADMIN_CLIENT_ID: ${AUTH0_ADMIN_CLIENT_ID}
+      AUTH0_ADMIN_CLIENT_SECRET: ${AUTH0_ADMIN_CLIENT_SECRET}
+      AUTH0_MANAGEMENT_CLIENT_ID: ${AUTH0_MANAGEMENT_CLIENT_ID}
+      AUTH0_MANAGEMENT_CLIENT_SECRET: ${AUTH0_MANAGEMENT_CLIENT_SECRET}
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN}
+      AUTH0_API_IDENTIFIER: ${AUTH0_API_IDENTIFIER}
+      AUTH0_APP_SECRET_KEY: ${AUTH0_APP_SECRET_KEY}
+      AUTH0_LOGIN_REDIRECT_URI: ${AUTH0_LOGIN_REDIRECT_URI}
+      AUTH0_LOGOUT_REDIRECT_URI: ${AUTH0_LOGOUT_REDIRECT_URI}
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+      - ./private_key.txt:/app/private_key.txt
+      - ./public_key.txt:/app/public_key.txt
+    depends_on:
+      - redis
+      - scheduler
+    networks:
+      - bridge
+  scheduler:
+    container_name: edge_auctions_scheduler
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      RUN_MODE: scheduler
       CONFIG_PATH: ./config/config.yml
       DB_URL: postgresql://${DB_USER}:${DB_PASSWORD}@edge_auctions_db:5432/${DB_NAME}
       DB_USER: ${DB_USER}
