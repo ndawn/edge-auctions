@@ -97,10 +97,10 @@ def run_queue(config: Config) -> None:
     broker = RedisBroker(url=config.broker_url, middleware=[])
     dramatiq.set_broker(broker)
 
-    app = create_base_app(config)
+    create_base_app(config)
 
     for task in tasks:
-        dramatiq.actor(with_app_context(app)(task))
+        dramatiq.actor(task)
 
     worker = Worker(broker)
     worker.start()

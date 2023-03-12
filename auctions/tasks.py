@@ -1,5 +1,7 @@
 from traceback import print_exception
 
+import dramatiq
+
 from auctions.db.models.auctions import Auction
 from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.enum import EmailType
@@ -15,6 +17,7 @@ from auctions.services.shop_connect_service import ShopConnectService
 from auctions.services.users_service import UsersService
 
 
+@dramatiq.actor
 @inject
 def try_close_auction_sets(auctions_service: AuctionsService = Provide()) -> None:
     try:
@@ -26,6 +29,7 @@ def try_close_auction_sets(auctions_service: AuctionsService = Provide()) -> Non
         print_exception(type(exception), exception, exception.__traceback__)
 
 
+@dramatiq.actor
 @inject
 def create_invoice(
     user_id: str,
@@ -42,6 +46,7 @@ def create_invoice(
         print_exception(type(exception), exception, exception.__traceback__)
 
 
+@dramatiq.actor
 @inject
 def check_invoices(
     auctions_service: AuctionsService = Provide(),
@@ -54,6 +59,7 @@ def check_invoices(
         print_exception(type(exception), exception, exception.__traceback__)
 
 
+@dramatiq.actor
 @inject
 def send_push(
     recipient_id: str,
@@ -70,6 +76,7 @@ def send_push(
     push_service.send_event(recipient, event_type, payload)
 
 
+@dramatiq.actor
 @inject
 def send_email(
     recipient_id: str,
@@ -82,11 +89,3 @@ def send_email(
         email_service.send_email(recipient, message_type)
     except Exception as exception:
         print_exception(type(exception), exception, exception.__traceback__)
-
-
-tasks = [
-    check_invoices,
-    create_invoice,
-    send_push,
-    try_close_auction_sets,
-]
