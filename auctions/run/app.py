@@ -48,6 +48,7 @@ def create_app(config: Config) -> Flask:
     broker = RedisBroker(url=config.broker_url)
     set_broker(broker)
 
+    provider.add_global(app)
     provider.add_global(oauth)
 
     @app.errorhandler(422)
