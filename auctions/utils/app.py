@@ -18,6 +18,7 @@ def create_base_app(config: Config) -> Flask:
 
     mail = Mail(app)
 
+    provider.add_global(app)
     provider.add_global(config)
     provider.add_global(PasswordHasher())
     provider.add_global(AESCipher(config.password_key))

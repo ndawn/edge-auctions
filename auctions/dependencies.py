@@ -1,17 +1,25 @@
 import inspect
 from dataclasses import dataclass
 from functools import wraps
+from typing import Generic
+from typing import Type
 from typing import TypeVar
+
+from flask import Flask
 
 
 GLOBALS = {}
 
 
+DependencyInstance = TypeVar("DependencyInstance", bound=object)
+DependencyType = TypeVar("DependencyType", bound=type)
+
+
 @dataclass
-class Dependency:
+class Dependency(Generic[DependencyInstance]):
     arg_name: str
     class_name: str
-    class_: type
+    class_: type[DependencyInstance]
     depends: list["Dependency"]
 
 
@@ -60,7 +68,13 @@ class DependencyProvider:
             )
         ]
 
-    def provide(self, dependency: Dependency) -> object:
+    def provide(
+        self,
+        dependency: Dependency[DependencyInstance] | type[DependencyInstance],
+    ) -> DependencyInstance:
+        if not isinstance(dependency, Dependency):
+            return self.provide(Dependency("", self.get_qual_name(dependency), dependency, []))
+
         if dependency.class_name in GLOBALS:
             return GLOBALS[dependency.class_name]
 
@@ -97,7 +111,10 @@ def inject(func: callable) -> callable:
         for dependency in dependency_tree:
             dep_kwargs[dependency.arg_name] = provider.provide(dependency)
 
-        result = func(*args, **kwargs, **dep_kwargs)
+        app = provider.provide(Flask)
+
+        with app.app_context():
+            result = func(*args, **kwargs, **dep_kwargs)
 
         for dependency in dependency_tree:
             provider.invalidate_cache(dependency)

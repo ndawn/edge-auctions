@@ -1,16 +1,21 @@
 from typing import Callable
 
 import dramatiq
+from flask import Flask
 
 from auctions.db.models.enum import EmailType
 from auctions.db.models.enum import PushEventType
+from auctions.dependencies import Provide
+from auctions.utils.app import with_app_context
 
 
 class ScheduleService:
-    @staticmethod
-    def ensure_task(fn: Callable | dramatiq.Actor) -> dramatiq.Actor:
+    def __init__(self, app: Flask = Provide()) -> None:
+        self.app = app
+
+    def ensure_task(self, fn: Callable | dramatiq.Actor) -> dramatiq.Actor:
         if not isinstance(fn, dramatiq.Actor):
-            fn = dramatiq.actor(fn)
+            fn = dramatiq.actor(with_app_context(self.app)(fn))
 
         return fn
 

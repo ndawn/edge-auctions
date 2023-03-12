@@ -1,10 +1,10 @@
 import argparse
 import multiprocessing
+import time
 
 import dramatiq
 from dramatiq import Worker
 from dramatiq.brokers.redis import RedisBroker
-from dramatiq.cli import main as dramatiq_main
 
 from auctions.config import Config
 from auctions.tasks import tasks
@@ -107,7 +107,7 @@ def run_queue(config: Config) -> None:
 
     try:
         while True:
-            pass
+            time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         worker.stop()
 
