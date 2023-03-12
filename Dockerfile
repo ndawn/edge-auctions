@@ -6,4 +6,4 @@ COPY . .
 
 STOPSIGNAL SIGINT
 
-ENTRYPOINT python3 -m auctions.app
+CMD ["python3", "-m", "auctions.app"]
