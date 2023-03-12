@@ -285,7 +285,7 @@ class AuctionsService:
             last_bid.next_bid = bid
 
             self.schedule_service.send_push(
-                last_bid.user,
+                last_bid.user.id,
                 PushEventType.AUCTION_BID_BEATEN,
                 {
                     "auctionId": auction.id,

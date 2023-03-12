@@ -40,7 +40,7 @@ class PushService:
         except WebPushException as exception:
             print_exception(type(exception), exception, exception.__traceback__)
 
-            if exception.response.status_code == 410:
+            if exception.response.status_code in {403, 410}:
                 self.push_subscriptions_repository.delete([subscription_info])
 
     def send_event(self, recipient: User | None, event_type: PushEventType, payload: dict[str, ...]):
