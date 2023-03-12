@@ -1,10 +1,5 @@
-import os
 from traceback import print_exception
 
-import dramatiq
-from dramatiq.brokers.redis import RedisBroker
-
-from auctions.config import Config
 from auctions.db.models.auctions import Auction
 from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.enum import EmailType
@@ -18,8 +13,6 @@ from auctions.services.email_service import EmailService
 from auctions.services.push_service import PushService
 from auctions.services.shop_connect_service import ShopConnectService
 from auctions.services.users_service import UsersService
-from auctions.utils.app import create_base_app
-from auctions.utils.app import with_app_context
 
 
 @inject
@@ -91,13 +84,9 @@ def send_email(
         print_exception(type(exception), exception, exception.__traceback__)
 
 
-if os.getenv("RUN_MODE", "") == "worker":
-    config = Config.load(os.getenv("CONFIG_PATH", ""))
-    app = create_base_app(config)
-    broker = RedisBroker(url=config.broker_url)
-    dramatiq.set_broker(broker)
-
-    try_close_auction_sets = dramatiq.actor(with_app_context(app)(try_close_auction_sets))
-    create_invoice = dramatiq.actor(with_app_context(app)(create_invoice))
-    check_invoices = dramatiq.actor(with_app_context(app)(check_invoices))
-    send_push = dramatiq.actor(with_app_context(app)(send_push))
+tasks = [
+    check_invoices,
+    create_invoice,
+    send_push,
+    try_close_auction_sets,
+]

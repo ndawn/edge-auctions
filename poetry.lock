@@ -621,22 +621,6 @@ async = ["asgiref (>=3.2)"]
 dotenv = ["python-dotenv"]
 
 [[package]]
-name = "flask-apscheduler"
-version = "1.12.4"
-description = "Adds APScheduler support to Flask"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "Flask-APScheduler-1.12.4.tar.gz", hash = "sha256:681dae34dc6cc9403ce674795e53abd0bff540472129cfd3d3c93e0e1d502da8"},
-]
-
-[package.dependencies]
-apscheduler = ">=3.2.0,<4.0.0"
-flask = ">=0.10.1"
-python-dateutil = ">=2.4.2"
-
-[[package]]
 name = "flask-cors"
 version = "3.0.10"
 description = "A Flask extension adding a decorator for CORS support"
@@ -2360,4 +2344,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "645e76e92ce9cf1fabd66bc3b8a9cfee1ec1eab2bb8476df8a47688c858c3b90"
+content-hash = "8cd847421de5fa2cc1b8c6cbab9efc2fe9bf38394f6068694c2fb94e0c9c6ebc"
