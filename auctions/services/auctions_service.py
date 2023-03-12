@@ -257,29 +257,30 @@ class AuctionsService:
         if last_bid is not None and last_bid.user.id == user.id:
             raise CreateBidFailed(CreateBidFailReason.OWN_BID)
 
-        bid = Bid(
-            auction=auction,
-            user=user,
-            value=value,
-            created_at=now,
-        )
+        bid = {
+            "auction": auction,
+            "user": user,
+            "value": value,
+            "is_buyout": False,
+            "created_at": now,
+        }
 
         if value == -1:
             if not self._is_valid_buyout(last_bid):
                 raise CreateBidFailed(CreateBidFailReason.INVALID_BUYOUT)
 
-            bid.is_buyout = True
-            bid.value = auction.item.price_category.buy_now_price
+            bid["is_buyout"] = True
+            bid["value"] = auction.item.price_category.buy_now_price
         else:
-            if not self._is_valid_bid(bid):
+            if not self._is_valid_bid(value, auction):
                 raise CreateBidFailed(CreateBidFailReason.INVALID_BID)
 
-            if last_bid is not None and not self._is_valid_beating(bid, last_bid):
+            if last_bid is not None and not self._is_valid_beating(value, last_bid):
                 raise CreateBidFailed(CreateBidFailReason.INVALID_BEATING)
 
-            bid.is_sniped = self._is_sniped(bid)
+            bid["is_sniped"] = self._is_sniped(now, auction)
 
-        bid = self.bids_repository.create(bid)
+        bid = self.bids_repository.create(**bid)
 
         if last_bid is not None:
             last_bid.next_bid = bid
@@ -319,17 +320,17 @@ class AuctionsService:
         return bid
 
     @staticmethod
-    def _is_valid_bid(bid: Bid) -> bool:
+    def _is_valid_bid(value: int, auction: Auction) -> bool:
         return (
-            (bid.value >= bid.auction.item.price_category.bid_start_price)
-            and (bid.value % bid.auction.item.price_category.bid_multiple_of == 0)
+            (value >= auction.item.price_category.bid_start_price)
+            and (value % auction.item.price_category.bid_multiple_of == 0)
         )
 
     @staticmethod
-    def _is_valid_beating(bid: Bid, previous_bid: Bid | None) -> bool:
+    def _is_valid_beating(value: int, previous_bid: Bid | None) -> bool:
         return (
             (previous_bid is not None)
-            and (bid.value >= previous_bid.value + bid.auction.item.price_category.bid_min_step)
+            and (value >= previous_bid.value + previous_bid.auction.item.price_category.bid_min_step)
         )
 
     @staticmethod
@@ -344,5 +345,5 @@ class AuctionsService:
         )
 
     @staticmethod
-    def _is_sniped(bid: Bid) -> bool:
-        return bid.created_at + timedelta(minutes=bid.auction.set.anti_sniper) >= bid.auction.date_due
+    def _is_sniped(created_at: datetime, auction: Auction) -> bool:
+        return created_at + timedelta(minutes=auction.set.anti_sniper) >= auction.date_due
