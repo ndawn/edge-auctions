@@ -5,6 +5,7 @@ services:
   app:
     container_name: edge_auctions_app
     build: .
+    image: app_app
     env_file: .env
     restart: unless-stopped
     environment:
@@ -47,6 +48,7 @@ services:
   queue:
     container_name: edge_auctions_queue
     build: .
+    image: app_app
     env_file: .env
     restart: unless-stopped
     environment:
@@ -88,6 +90,7 @@ services:
   scheduler:
     container_name: edge_auctions_scheduler
     build: .
+    image: app_app
     env_file: .env
     restart: unless-stopped
     environment:
