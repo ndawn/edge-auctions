@@ -4,6 +4,7 @@ from traceback import print_exception
 from marshmallow.exceptions import ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import UnprocessableEntity
 
+from auctions.db import db
 from auctions.dependencies import Provide
 from auctions.dependencies import inject
 from auctions.exceptions import HTTPError
@@ -29,7 +30,11 @@ def with_error_handler(
     @wraps(func)
     def decorated(*args, **kwargs):
         try:
-            return func(*args, **kwargs)
+            try:
+                return func(*args, **kwargs)
+            except:
+                db.session.rollback()
+                raise
         except HTTPError as exception:
             return JsonResponse(exception_serialzer.dump(exception), status=exception.status_code)
         except (MarshmallowValidationError, UnprocessableEntity) as exception:
