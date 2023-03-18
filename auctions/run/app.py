@@ -5,8 +5,7 @@ from flask import jsonify
 from flask import Flask
 
 from auctions.config import Config
-from auctions.dependencies import provider
-from auctions.endpoints import root_blueprint
+from auctions.dependencies import DependencyProvider
 from auctions.utils.app import create_base_app
 from auctions.utils.login import require_auth
 from auctions.utils.token_validator import Auth0JWTBearerTokenValidator
@@ -48,7 +47,7 @@ def create_app(config: Config) -> Flask:
     broker = RedisBroker(url=config.broker_url)
     set_broker(broker)
 
-    provider.add_global(app)
+    provider = DependencyProvider(app)
     provider.add_global(oauth)
 
     @app.errorhandler(422)
@@ -70,6 +69,7 @@ def create_app(config: Config) -> Flask:
 
         return jsonify(response_data), err.code
 
+    from auctions.endpoints import root_blueprint
     app.register_blueprint(root_blueprint)
 
     return app

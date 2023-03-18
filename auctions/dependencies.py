@@ -2,7 +2,7 @@ import inspect
 from dataclasses import dataclass
 from functools import wraps
 from typing import Generic
-from typing import Type
+from typing import Self
 from typing import TypeVar
 
 from flask import Flask
@@ -12,7 +12,6 @@ GLOBALS = {}
 
 
 DependencyInstance = TypeVar("DependencyInstance", bound=object)
-DependencyType = TypeVar("DependencyType", bound=type)
 
 
 @dataclass
@@ -27,18 +26,17 @@ class Provide:
     ...
 
 
-Injectable = TypeVar("Injectable", bound=type)
-
-
 class DependencyProvider:
-    _instance = None
+    instance: Self = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    def __new__(cls, app: Flask) -> "DependencyProvider":
+        if cls.instance is None:
+            cls.instance = super().__new__(cls)
 
-    def __init__(self):
+        return cls.instance
+
+    def __init__(self, app: Flask) -> None:
+        self.app = app
         self._cache = {}
 
     def add_global(self, obj: ...) -> None:
@@ -98,10 +96,11 @@ class DependencyProvider:
             self.invalidate_cache(sub_dependency)
 
 
-provider = DependencyProvider()
-
-
 def inject(func: callable) -> callable:
+    if DependencyProvider.instance is None:
+        raise RuntimeError("Dependency provider is not instantiated")
+
+    provider = DependencyProvider.instance
     dependency_tree = provider.resolve_dependency_tree(func)
 
     @wraps(func)

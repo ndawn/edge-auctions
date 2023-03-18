@@ -6,7 +6,7 @@ from flask_mail import Mail
 
 from auctions.config import Config
 from auctions.db import db
-from auctions.dependencies import provider
+from auctions.dependencies import DependencyProvider
 from auctions.utils.cipher import AESCipher
 
 
@@ -17,6 +17,8 @@ def create_base_app(config: Config) -> Flask:
     db.init_app(app)
 
     mail = Mail(app)
+
+    provider = DependencyProvider(app)
 
     provider.add_global(app)
     provider.add_global(config)
