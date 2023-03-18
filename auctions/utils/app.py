@@ -16,9 +16,9 @@ def create_base_app(config: Config) -> Flask:
     app = Flask(__name__)
     session_manager = SessionManager(config)
 
-    @app.teardown_request
-    def remove_session(_) -> None:
-        session_manager.session.remove()
+    # @app.teardown_request
+    # def remove_session(_) -> None:
+    #     session_manager.session.remove()
 
     # mail = Mail(app)
 
