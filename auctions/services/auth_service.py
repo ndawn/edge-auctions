@@ -3,22 +3,29 @@ from base64 import b64decode
 from traceback import print_exception
 
 from auth0.exceptions import Auth0Error
+from authlib.oauth2.rfc7523.validator import JWTBearerToken
+from flask import Request
 from jose import jwt
 from jose import ExpiredSignatureError
 from jose import JWTError
 from marshmallow.exceptions import ValidationError
+from werkzeug.exceptions import HTTPException
 
 from auctions.config import Config
+from auctions.db.models.enum import AuthAppType
 from auctions.db.models.users import User
 from auctions.db.repositories.users import UsersRepository
 from auctions.dependencies import Provide
+from auctions.exceptions import ConflictError
 from auctions.exceptions import BadRequestError
 from auctions.exceptions import ForbiddenError
+from auctions.exceptions import NotAuthorizedError
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.serializers.auth import Auth0LoginRequestPayload
 from auctions.serializers.auth import Auth0LoginRequestPayloadSerializer
 from auctions.services.auth0_connect_service import Auth0ConnectService
 from auctions.services.shop_connect_service import ShopConnectService
+from auctions.utils.resource_protector import require_auth
 
 
 class AuthService:
@@ -115,3 +122,69 @@ class AuthService:
         token = self.auth0_connect_service.get_access_token(user)
 
         return user, token["id_token"], token["access_token"]
+
+    def authorize_request(self, is_admin: bool) -> User:
+        try:
+            with require_auth.acquire() as token:
+                user = self.get_user_by_token(token)
+        except HTTPException as exception:
+            if exception.code == 401:
+                raise NotAuthorizedError() from exception
+
+            raise
+
+        if user is None:
+            raise NotAuthorizedError()
+
+        if user.is_banned:
+            raise ForbiddenError()
+
+        if not user.is_admin and is_admin:
+            raise ForbiddenError()
+
+        return user
+
+    @staticmethod
+    def _get_token_from_request(request: Request) -> str | None:
+        auth_header_value = request.headers.get("Authorization", "")
+
+        if not auth_header_value.lower().startswith("bearer "):
+            return None
+
+        return auth_header_value[7:]
+
+    @staticmethod
+    def _validate_user_app_permissions(user: User | None, app_type: AuthAppType) -> None:
+        if user is None:
+            raise NotAuthorizedError("Invalid access token")
+
+        if app_type == AuthAppType.ADMIN and not user.is_admin:
+            raise ForbiddenError("Insufficient permissions")
+
+    def get_user_by_token(self, token: JWTBearerToken) -> User | None:
+        if "sub" not in token or "app" not in token:
+            raise NotAuthorizedError("Invalid access token")
+
+        user = self.get_user_by_id(token.sub)
+
+        self._validate_user_app_permissions(user, token["app"])
+
+        return user
+
+    def get_user_by_id(self, user_id: str) -> User | None:
+        try:
+            return self.users_repository.get_one_by_id(user_id)
+        except ObjectDoesNotExist:
+            return None
+
+    def create_user(self, user_id: str, first_name: str, last_name: str, is_admin: bool) -> User:
+        try:
+            return self.users_repository.create(
+                id=user_id,
+                first_name=first_name,
+                last_name=last_name,
+                is_admin=is_admin,
+            )
+        except Exception as exception:
+            print_exception(exception.__class__, exception, exception.__traceback__)
+            raise ConflictError("User already exists") from exception

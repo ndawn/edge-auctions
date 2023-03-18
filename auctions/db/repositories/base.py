@@ -13,7 +13,6 @@ from sqlalchemy.sql.elements import True_
 from sqlalchemy.sql.selectable import FromClause
 
 from auctions.config import Config
-from auctions.db import db
 from auctions.db.models.auction_sets import AuctionSet
 from auctions.db.models.auctions import Auction
 from auctions.db.models.bids import Bid
@@ -49,9 +48,9 @@ class Repository(Generic[Model]):
     default_page_size: int = 50
     joined_fields: tuple[InstrumentedAttribute, ...] = ()
 
-    def __init__(self, config: Config = Provide(), session: Session | None = None) -> None:
+    def __init__(self, session: Session = Provide(), config: Config = Provide()) -> None:
+        self.session = session
         self.config = config
-        self.session = session or db.session
 
     @property
     def model(self) -> type[Model]:
@@ -71,7 +70,6 @@ class Repository(Generic[Model]):
         if instance is None:
             instance = self.model(**kwargs)
 
-        self.session.merge(instance)
         self.session.add(instance)
         self.session.flush()
         return instance

@@ -11,11 +11,7 @@ blueprint = create_crud_blueprint(
         "page": fields.Int(required=False, default=0),
         "page_size": fields.Int(required=False, default=20),
     },
-    operations=(
-        "list",
-        "update",
-        "delete",
-    ),
+    operations={"list", "update", "delete"},
     create_args=UserSerializer(),
     update_args=UserSerializer(partial=True),
     non_int_id=True,

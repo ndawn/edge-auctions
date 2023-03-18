@@ -1,34 +1,36 @@
 from datetime import datetime
-from datetime import timezone
 from typing import TYPE_CHECKING
 from typing import Optional
 
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import func
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 if TYPE_CHECKING:
     from auctions.db.models.auctions import Auction
     from auctions.db.models.users import User
 
 
-class Bid(db.Model):
+class Bid(Model):
     __tablename__ = "bids"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    user_id: Mapped[str] = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="RESTRICT"))
-    user: Mapped["User"] = db.relationship("User", foreign_keys="Bid.user_id", back_populates="bids")
-    auction_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("auctions.id", ondelete="CASCADE"))
-    auction: Mapped["Auction"] = db.relationship("Auction", foreign_keys="Bid.auction_id", back_populates="bids")
-    value: Mapped[int] = db.Column(db.Integer)
-    is_sniped: Mapped[bool] = db.Column(db.Boolean, default=False)
-    is_buyout: Mapped[bool] = db.Column(db.Boolean, default=False)
-    next_bid_id: Mapped[int | None] = db.Column(db.Integer, db.ForeignKey("bids.id"), nullable=True)
-    next_bid: Mapped[Optional["Bid"]] = db.relationship(
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    user: Mapped["User"] = relationship("User", foreign_keys="Bid.user_id", back_populates="bids")
+    auction_id: Mapped[int] = mapped_column(ForeignKey("auctions.id", ondelete="CASCADE"))
+    auction: Mapped["Auction"] = relationship("Auction", foreign_keys="Bid.auction_id", back_populates="bids")
+    value: Mapped[int]
+    is_sniped: Mapped[bool] = mapped_column(default=False)
+    is_buyout: Mapped[bool] = mapped_column(default=False)
+    next_bid_id: Mapped[int | None] = mapped_column(ForeignKey("bids.id"))
+    next_bid: Mapped[Optional["Bid"]] = relationship(
         "Bid",
         uselist=False,
         foreign_keys="Bid.next_bid_id",
         join_depth=1,
     )
-    created_at: Mapped[datetime] = db.Column(db.DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())

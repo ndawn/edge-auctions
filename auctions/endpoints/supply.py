@@ -8,7 +8,6 @@ from auctions.db.repositories.images import ImagesRepository
 from auctions.db.repositories.item_types import ItemTypesRepository
 from auctions.db.repositories.items import ItemsRepository
 from auctions.dependencies import Provide
-from auctions.dependencies import inject
 from auctions.exceptions import ObjectDoesNotExist
 from auctions.exceptions import SessionStartFailed
 from auctions.serializers.items import ItemJoinData
@@ -16,17 +15,13 @@ from auctions.serializers.items import ItemSerializer
 from auctions.serializers.ok import OkSerializer
 from auctions.serializers.sessions import SupplySessionSerializer
 from auctions.services.supply_service import SupplyService
-from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import login_required
+from auctions.utils.endpoints import endpoint
 from auctions.utils.response import JsonResponse
 
 blueprint = Blueprint("supply", __name__, url_prefix="/supply")
 
 
-@blueprint.get("/current")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.get("/current"))
 def get_current_session(
     supply_service: SupplyService = Provide(),
     supply_session_serializer: SupplySessionSerializer = Provide(),
@@ -35,10 +30,7 @@ def get_current_session(
     return JsonResponse(supply_session_serializer.dump(session))
 
 
-@blueprint.post("/start")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/start"))
 def start_session(
     item_types_repository: ItemTypesRepository = Provide(),
     images_repository: ImagesRepository = Provide(),
@@ -66,10 +58,7 @@ def start_session(
     return JsonResponse(supply_session_serializer.dump(session))
 
 
-@blueprint.post("/current/<int:id_>/process")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/current/<int:id_>/process"))
 def process_item(
     id_: int,
     items_repository: ItemsRepository = Provide(),
@@ -81,10 +70,7 @@ def process_item(
     return JsonResponse(item_serializer.dump(item))
 
 
-@blueprint.post("/current/add")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/current/add"))
 def add_images(
     images_repository: ImagesRepository = Provide(),
     supply_service: SupplyService = Provide(),
@@ -103,10 +89,7 @@ def add_images(
     return JsonResponse(supply_session_serializer.dump(session))
 
 
-@blueprint.post("/current/join")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/current/join"))
 def join_items(
     images_repository: ImagesRepository = Provide(),
     items_repository: ItemsRepository = Provide(),
@@ -122,10 +105,7 @@ def join_items(
     return JsonResponse(item_serializer.dump(item))
 
 
-@blueprint.post("/current/apply")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/current/apply"))
 def apply_session(
     supply_service: SupplyService = Provide(),
     item_serializer: ItemSerializer = Provide(),
@@ -134,10 +114,7 @@ def apply_session(
     return JsonResponse(item_serializer.dump(items, many=True))
 
 
-@blueprint.post("/current/discard")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/current/discard"))
 def discard_session(
     supply_service: SupplyService = Provide(),
     ok_serializer: OkSerializer = Provide(),

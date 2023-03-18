@@ -48,6 +48,7 @@ class SecretConfigSchema(Schema):
     vapid_public_key = fields.Str(required=True, data_key="VAPID_PUBLIC_KEY")
     vapid_private_key = fields.Str(required=True, data_key="VAPID_PRIVATE_KEY")
     vapid_sub = fields.Str(required=True, data_key="VAPID_SUB")
+    vips_dir = fields.Str(required=True, data_key="VIPS_DIR")
     shop_id = fields.Str(required=True, data_key="SHOP_ID")
     shop_api_key = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_API_KEY")
     shop_api_secret = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_API_SECRET")
@@ -98,8 +99,6 @@ class ConfigSchema(Schema):
     shop_payment_gateway_id = fields.Int(required=True)
     shop_order_status_permalink = fields.Str(required=True)
     tasks_queue_name = fields.Str(required=True)
-    tasks_log_path = fields.Str(required=True)
-    tasks_log_level = fields.Str(required=True)
 
 
 def _create_dirs(dirs) -> None:
@@ -116,6 +115,7 @@ class Config:
     result_ttl_ms: int
     debug: bool
     token_expire_time: int
+    vips_dir: str
     assets_path: Path
     images_path: Path
     full_images_path: Path
@@ -131,8 +131,6 @@ class Config:
     separators_start_price_position: tuple[int, int]
     separators_min_step_position: tuple[int, int]
     tasks_queue_name: str
-    tasks_log_path: Path
-    tasks_log_level: str
     password_key: bytes
     vapid_public_key: str
     vapid_private_key: str

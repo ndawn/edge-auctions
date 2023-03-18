@@ -17,9 +17,9 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from auctions.db import db
 from auctions.db.models.auctions import Auction
 from auctions.db.models.auction_sets import AuctionSet
+from auctions.db.models.base import Model
 from auctions.db.models.bids import Bid
 from auctions.db.models.images import Image
 from auctions.db.models.item_types import ItemType
@@ -30,7 +30,7 @@ from auctions.db.models.sessions import SupplySession
 from auctions.db.models.templates import Template
 from auctions.db.models.users import User
 
-target_metadata = db.Model.metadata
+target_metadata = Model.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -70,7 +70,10 @@ def run_migrations_online() -> None:
 
     """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        {
+            **config.get_section(config.config_ini_section),
+            "sqlalchemy.url": os.getenv("DB_URL", config.get_main_option("sqlalchemy.url")),
+        },
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

@@ -7,6 +7,8 @@ from dramatiq import Worker
 from dramatiq.brokers.redis import RedisBroker
 
 from auctions.config import Config
+from auctions.db.session import SessionManager
+from auctions.tasks import tasks
 from auctions.utils.app import create_base_app
 
 
@@ -95,18 +97,22 @@ def run_queue(config: Config) -> None:
     broker = RedisBroker(url=config.broker_url, middleware=[])
     dramatiq.set_broker(broker)
 
-    create_base_app(config)
+    app = create_base_app(config)
+    session_manager: SessionManager = app.provider.provide(SessionManager)
 
-    import auctions.tasks  # noqa # pylint: disable=unused-import
+    with app.app_context():
+        with session_manager.session() as session:
+            for task in tasks:
+                dramatiq.actor(app.provider.inject(task, [session]))
 
-    worker = Worker(broker)
-    worker.start()
+            worker = Worker(broker)
+            worker.start()
 
-    try:
-        while True:
-            time.sleep(1)
-    except (KeyboardInterrupt, SystemExit):
-        worker.stop()
+            try:
+                while True:
+                    time.sleep(1)
+            except (KeyboardInterrupt, SystemExit):
+                worker.stop()
 
 
 def main(config: Config) -> None:

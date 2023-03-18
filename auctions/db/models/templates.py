@@ -1,11 +1,12 @@
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import Mapped
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 
-class Template(db.Model):
+class Template(Model):
     __tablename__ = "templates"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    alias: Mapped[str] = db.Column(db.String(255))
-    text: Mapped[str] = db.Column(db.Text, default="")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alias: Mapped[str]
+    text: Mapped[str] = mapped_column(default="")

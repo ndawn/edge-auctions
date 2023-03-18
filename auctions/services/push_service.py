@@ -63,7 +63,7 @@ class PushService:
             subscription.data = json.dumps(asdict(subscription_info))
         except ObjectDoesNotExist:
             self.push_subscriptions_repository.create(
-                user=user,
+                user_id=user.id,
                 endpoint=subscription_info.endpoint,
                 data=json.dumps(asdict(subscription_info)),
             )

@@ -1,41 +1,34 @@
-from functools import wraps
-
 from argon2 import PasswordHasher
-from flask import Flask
-from flask_mail import Mail
+from flask import Flask as BaseFlask
+# from flask_mail import Mail
 
 from auctions.config import Config
-from auctions.db import db
+from auctions.db.session import SessionManager
 from auctions.dependencies import DependencyProvider
 from auctions.utils.cipher import AESCipher
 
 
+class Flask(BaseFlask):
+    provider: DependencyProvider
+
+
 def create_base_app(config: Config) -> Flask:
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = config.db_url
-    app.config["SQLALCHEMY_ECHO"] = config.debug
-    db.init_app(app)
+    session_manager = SessionManager(config)
 
-    mail = Mail(app)
+    @app.teardown_request
+    def remove_session(_) -> None:
+        session_manager.session.remove()
+
+    # mail = Mail(app)
 
     provider = DependencyProvider(app)
+    app.provider = provider
 
-    provider.add_global(app)
     provider.add_global(config)
+    provider.add_global(session_manager)
     provider.add_global(PasswordHasher())
     provider.add_global(AESCipher(config.password_key))
-    provider.add_global(mail)
+    # provider.add_global(mail)
 
     return app
-
-
-def with_app_context(app: Flask) -> callable:
-    def decorator(func: callable) -> callable:
-        @wraps(func)
-        def decorated(*args, **kwargs):
-            with app.app_context():
-                return func(*args, **kwargs)
-
-        return decorated
-
-    return decorator

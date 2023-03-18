@@ -1,6 +1,7 @@
 import logging
 
 import dramatiq
+import loguru
 from apscheduler.schedulers import SchedulerNotRunningError
 from apscheduler.schedulers.blocking import BlockingScheduler
 from dramatiq.brokers.redis import RedisBroker
@@ -36,14 +37,16 @@ def create_scheduler(config: Config) -> BlockingScheduler:
 
 
 def main(config: Config) -> None:
-    logging.basicConfig(level=logging.DEBUG)
     create_base_app(config)
     scheduler = create_scheduler(config)
+    logging.basicConfig(level=logging.DEBUG)
 
     try:
+        loguru.logger.info("Starting scheduler")
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
         try:
+            loguru.logger.info("Stopping scheduler")
             scheduler.shutdown()
         except SchedulerNotRunningError:
             pass

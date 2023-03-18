@@ -5,7 +5,7 @@ from marshmallow import fields
 class ExceptionSerializer(Schema):
     error = fields.Method("get_error_name")
     message = fields.Method("get_error_message")
-    status_code = fields.Int(default=500)
+    status_code = fields.Int(default=500, data_key="statusCode")
     extra = fields.Dict(required=False, default={})
 
     @staticmethod

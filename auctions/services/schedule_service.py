@@ -2,32 +2,35 @@ from typing import Callable
 
 import dramatiq
 
-from auctions.db.models.enum import EmailType
+# from auctions.db.models.enum import EmailType
 from auctions.db.models.enum import PushEventType
 
 
 class ScheduleService:
     @staticmethod
-    def send_push(recipient_id: str | None, event_type: PushEventType, payload: ...) -> None:
-        from auctions.tasks import send_push as send_push_task
-        send_push_task.send(recipient_id, event_type, payload)
+    def ensure_task(fn: Callable | dramatiq.Actor) -> dramatiq.Actor:
+        if isinstance(fn, dramatiq.Actor):
+            return fn
 
-    @staticmethod
-    def send_email(recipient_id: str, message_type: EmailType) -> None:
-        from auctions.tasks import send_email as send_email_task
-        send_email_task.send(recipient_id, message_type)
+        return dramatiq.actor(fn)
 
-    @staticmethod
-    def create_invoice(user_id: str, auction_ids: list[int]) -> None:
-        from auctions.tasks import create_invoice as create_invoice_task
-        create_invoice_task.send(user_id, auction_ids)
+    def send_push(self, recipient_id: str | None, event_type: PushEventType, payload: ...) -> None:
+        from auctions.tasks import send_push
+        self.ensure_task(send_push).send(recipient_id, event_type, payload)
 
-    @staticmethod
-    def check_invoices() -> None:
-        from auctions.tasks import check_invoices as check_invoices_task
-        check_invoices_task.send()
+    # @staticmethod
+    # def send_email(recipient_id: str, message_type: EmailType) -> None:
+    #     from auctions.tasks import send_email as send_email_task
+    #     send_email_task.send(recipient_id, message_type)
 
-    @staticmethod
-    def try_close_auction_sets() -> None:
-        from auctions.tasks import try_close_auction_sets as try_close_auction_sets_task
-        try_close_auction_sets_task.send()
+    def create_invoice(self, user_id: str, auction_ids: list[int]) -> None:
+        from auctions.tasks import create_invoice
+        self.ensure_task(create_invoice).send(user_id, auction_ids)
+
+    def check_invoices(self) -> None:
+        from auctions.tasks import check_invoices
+        self.ensure_task(check_invoices).send()
+
+    def try_close_auction_sets(self) -> None:
+        from auctions.tasks import try_close_auction_sets
+        self.ensure_task(try_close_auction_sets).send()

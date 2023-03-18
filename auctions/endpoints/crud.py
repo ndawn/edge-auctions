@@ -7,12 +7,10 @@ from webargs.flaskparser import parser
 
 from auctions.db.repositories.base import Model
 from auctions.dependencies import Provide
-from auctions.dependencies import inject
 from auctions.serializers.base import BaseSerializer
 from auctions.serializers.ok import OkSerializer
 from auctions.services.crud_service import CRUDServiceProvider
-from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import login_required
+from auctions.utils.endpoints import endpoint
 from auctions.utils.misc import to_snake_case
 from auctions.utils.response import JsonResponse
 
@@ -32,22 +30,13 @@ def create_crud_blueprint(
     list_args: dict[str, ...] = None,
     create_args: dict[str, ...] | BaseSerializer = None,
     update_args: dict[str, ...] | BaseSerializer = None,
-    operations: tuple[str, ...] = (
-        "list",
-        "create",
-        "read",
-        "update",
-        "delete",
-    ),
-    protected: tuple[str, ...] = (
-        "list",
-        "create",
-        "read",
-        "update",
-        "delete",
-    ),
+    operations: set[str] | None = None,
+    protected: set[str] | None = None,
     non_int_id: bool = False,
 ) -> Blueprint:
+    operations = operations or {"list", "create", "read", "update", "delete"}
+    protected = protected or {"list", "create", "read", "update", "delete"}
+
     name_singular = to_snake_case(model.__name__)
     name_plural = model.__tablename__
 
@@ -130,7 +119,7 @@ def create_crud_blueprint(
         ),
     }
 
-    for operation, (func, func_name, method, endpoint) in operations_spec.items():
+    for operation, (func, func_name, method, url) in operations_spec.items():
         method: callable
 
         if operation not in operations:
@@ -148,10 +137,7 @@ def create_crud_blueprint(
 
         apply_decorators(
             bind_function_name(func, func_name),
-            inject,
-            login_required(is_admin=operation in protected),
-            with_error_handler,
-            method(endpoint),
+            endpoint(method(url), is_admin=operation in protected),
         )
 
     return blueprint

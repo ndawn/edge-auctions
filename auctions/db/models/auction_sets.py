@@ -1,24 +1,26 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 if TYPE_CHECKING:
     from auctions.db.models.auctions import Auction
 
 
-class AuctionSet(db.Model):
+class AuctionSet(Model):
     __tablename__ = "auction_sets"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    date_due: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
-    anti_sniper: Mapped[int] = db.Column(db.Integer)
-    ended_at: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
-    is_published: Mapped[bool] = db.Column(db.Boolean(), default=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    date_due: Mapped[datetime]
+    anti_sniper: Mapped[int]
+    ended_at: Mapped[datetime]
+    is_published: Mapped[bool] = mapped_column(default=False)
 
-    auctions: Mapped[list["Auction"]] = db.relationship(
+    auctions: Mapped[list["Auction"]] = relationship(
         "Auction",
         back_populates="set",
         order_by="desc(Auction.date_due)",

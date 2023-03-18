@@ -1,10 +1,14 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import ClassVar
 from typing import Optional
+from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 if TYPE_CHECKING:
     from auctions.db.models.auction_sets import AuctionSet
@@ -13,23 +17,23 @@ if TYPE_CHECKING:
     from auctions.db.models.users import User
 
 
-class Auction(db.Model):
+class Auction(Model):
     __tablename__ = "auctions"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    set_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("auction_sets.id", ondelete="CASCADE"))
-    set: Mapped["AuctionSet"] = db.relationship("AuctionSet", foreign_keys="Auction.set_id", back_populates="auctions")
-    item_id: Mapped[int] = db.Column(db.Integer, db.ForeignKey("items.id", ondelete="RESTRICT"))
-    item: Mapped["Item"] = db.relationship("Item", foreign_keys="Auction.item_id")
-    date_due: Mapped[datetime] = db.Column(db.DateTime(timezone=True))
-    ended_at: Mapped[datetime | None] = db.Column(db.DateTime(timezone=True), nullable=True)
-    invoice_id: Mapped[int | None] = db.Column(db.Integer, nullable=True)
-    invoice_link: Mapped[str | None] = db.Column(db.Text, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    set_id: Mapped[int] = mapped_column(ForeignKey("auction_sets.id", ondelete="CASCADE"))
+    set: Mapped["AuctionSet"] = relationship("AuctionSet", foreign_keys="Auction.set_id", back_populates="auctions")
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id", ondelete="RESTRICT"))
+    item: Mapped["Item"] = relationship("Item", foreign_keys="Auction.item_id")
+    date_due: Mapped[datetime]
+    ended_at: Mapped[datetime | None]
+    invoice_id: Mapped[int | None]
+    invoice_link: Mapped[str | None]
 
-    bids: Mapped[list["Bid"]] = db.relationship("Bid", back_populates="auction", order_by="desc(Bid.created_at)",)
+    bids: Mapped[list["Bid"]] = relationship("Bid", back_populates="auction", order_by="desc(Bid.created_at)",)
 
-    last_bid_value: int | None
-    is_last_bid_own: bool
+    last_bid_value: ClassVar[int | None]
+    is_last_bid_own: ClassVar[bool]
 
     def get_last_bid(self) -> Optional["Bid"]:
         for bid in self.bids:

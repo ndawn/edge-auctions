@@ -1,25 +1,26 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 if TYPE_CHECKING:
     from auctions.db.models.items import Item
 
 
-class PriceCategory(db.Model):
+class PriceCategory(Model):
     __tablename__ = "price_categories"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True)
-    alias: Mapped[str] = db.Column(db.String(255), default="")
-    usd: Mapped[float] = db.Column(db.Float, default=0.0)
-    rub: Mapped[int] = db.Column(db.Integer, default=0)
-    buy_now_price: Mapped[int | None] = db.Column(db.Integer, nullable=True)
-    buy_now_expires: Mapped[int | None] = db.Column(db.Integer, nullable=True)
-    bid_start_price: Mapped[int] = db.Column(db.Integer, default=0)
-    bid_min_step: Mapped[int] = db.Column(db.Integer, default=0)
-    bid_multiple_of: Mapped[int] = db.Column(db.Integer, default=0)
-    manual: Mapped[bool] = db.Column(db.Boolean, default=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    alias: Mapped[str] = mapped_column(default="")
+    usd: Mapped[float] = mapped_column(default=0.0)
+    rub: Mapped[int] = mapped_column(default=0)
+    buy_now_price: Mapped[int | None]
+    buy_now_expires: Mapped[int | None]
+    bid_start_price: Mapped[int] = mapped_column(default=0)
+    bid_min_step: Mapped[int] = mapped_column(default=0)
+    bid_multiple_of: Mapped[int] = mapped_column(default=0)
 
-    items: Mapped[list["Item"]] = db.relationship("Item", back_populates="price_category")
+    items: Mapped[list["Item"]] = relationship("Item", back_populates="price_category")

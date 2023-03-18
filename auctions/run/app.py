@@ -1,4 +1,3 @@
-from authlib.integrations.flask_client import OAuth
 from dramatiq import set_broker
 from dramatiq.brokers.redis import RedisBroker
 from flask import jsonify
@@ -6,39 +5,13 @@ from flask import Flask
 
 from auctions.config import Config
 from auctions.dependencies import DependencyProvider
+from auctions.endpoints import connect_blueprints
 from auctions.utils.app import create_base_app
-from auctions.utils.login import require_auth
-from auctions.utils.token_validator import Auth0JWTBearerTokenValidator
+from auctions.utils.error_handler import handle_exception
+from auctions.utils.oauth import create_oauth
 from uvicorn_config import run_configured
 
 from flask_cors import CORS
-
-
-def create_oauth(app: Flask, config: Config) -> OAuth:
-    app.secret_key = config.auth0_app_secret_key
-
-    oauth = OAuth(app)
-
-    oauth.register(
-        "edge_auctions_admin",
-        client_id=config.auth0_admin_client_id,
-        client_secret=config.auth0_admin_client_secret,
-        client_kwargs={"scope": "openid profile email"},
-        server_metadata_url=f"https://{config.auth0_domain}/.well-known/openid-configuration",
-    )
-
-    # oauth.register(
-    #     "edge_auctions",
-    #     client_id=config.auth0_client_id,
-    #     client_secret=config.auth0_client_secret,
-    #     client_kwargs={"scope": "openid profile email"},
-    #     server_metadata_url=f"https://{config.auth0_domain}/.well-known/openid-configuration",
-    # )
-
-    validator = Auth0JWTBearerTokenValidator(config.auth0_domain, config.auth0_api_identifier)
-    require_auth.register_token_validator(validator)
-
-    return oauth
 
 
 def create_app(config: Config) -> Flask:
@@ -69,9 +42,9 @@ def create_app(config: Config) -> Flask:
 
         return jsonify(response_data), err.code
 
-    from auctions.endpoints import root_blueprint
-    app.register_blueprint(root_blueprint)
+    app.errorhandler(Exception)(handle_exception)
 
+    connect_blueprints(app)
     return app
 
 

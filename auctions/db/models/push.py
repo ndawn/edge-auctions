@@ -1,22 +1,25 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.attributes import Mapped
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped
 
-from auctions.db import db
+from auctions.db.models.base import Model
 
 if TYPE_CHECKING:
     from auctions.db.models.users import User
 
 
-class PushSubscription(db.Model):
+class PushSubscription(Model):
     __tablename__ = "push_subscriptions"
 
-    id: Mapped[int] = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str] = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    user: Mapped["User"] = db.relationship(
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user: Mapped["User"] = relationship(
         "User",
         foreign_keys="PushSubscription.user_id",
         back_populates="subscriptions",
     )
-    endpoint: Mapped[str] = db.Column(db.Text(), unique=True, nullable=False)
-    data: Mapped[str] = db.Column(db.Text(), nullable=False)
+    endpoint: Mapped[str] = mapped_column(unique=True)
+    data: Mapped[str]

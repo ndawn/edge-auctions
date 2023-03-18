@@ -1,33 +1,24 @@
 import json
 from traceback import print_exception
-from urllib.parse import urlencode
 
 from flask import Blueprint
 from flask import Response
-from flask import redirect
 from flask import request
-from webargs.flaskparser import parser
 
 from auctions.db.models.users import User
 from auctions.dependencies import Provide
-from auctions.dependencies import inject
 from auctions.exceptions import NotAuthorizedError
-from auctions.serializers.auth import Auth0LoginRequestSerializer
 from auctions.serializers.auth import ShopLoginRequestSerializer
 from auctions.serializers.users import BriefUserSerializer
 from auctions.serializers.users import UserSerializer
 from auctions.services.auth_service import AuthService
-from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import login_required
+from auctions.utils.endpoints import endpoint
 from auctions.utils.response import JsonResponse
 
 blueprint = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-@blueprint.get("/me")
-@with_error_handler
-@login_required(is_admin=False, inject_user=True)
-@inject
+@endpoint(blueprint.get("/me"), is_admin=False, inject_user=True)
 def get_me(
     user: User,
     user_serializer: UserSerializer = Provide(),
@@ -55,9 +46,7 @@ def get_me(
 #     return redirect(redirect_to, code=307)
 
 
-@blueprint.post("/login/shop")
-@with_error_handler
-@inject
+@endpoint(blueprint.post("/login/shop"), protected=False)
 def login_from_shop(
     auth_service: AuthService = Provide(),
     shop_login_request_serializer: ShopLoginRequestSerializer = Provide(),

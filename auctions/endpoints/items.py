@@ -4,7 +4,6 @@ from webargs.flaskparser import parser
 
 from auctions.db.models.items import Item
 from auctions.dependencies import Provide
-from auctions.dependencies import inject
 from auctions.endpoints.crud import create_crud_blueprint
 from auctions.serializers.items import ItemCountersSerializer
 from auctions.serializers.items import ItemFilterRequestSerializer
@@ -12,8 +11,7 @@ from auctions.serializers.items import ItemIdsSerializer
 from auctions.serializers.items import ItemSerializer
 from auctions.serializers.ok import OkSerializer
 from auctions.services.items_service import ItemsService
-from auctions.utils.error_handler import with_error_handler
-from auctions.utils.login import login_required
+from auctions.utils.endpoints import endpoint
 from auctions.utils.response import JsonResponse
 
 blueprint = create_crud_blueprint(
@@ -25,14 +23,11 @@ blueprint = create_crud_blueprint(
     },
     create_args=ItemSerializer(),
     update_args=ItemSerializer(partial=True),
-    operations=("read",),
+    operations={"read"},
 )
 
 
-@blueprint.get("")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.get(""))
 def list_items(
     items_service: ItemsService = Provide(),
     item_filter_request_serializer: ItemFilterRequestSerializer = Provide(),
@@ -43,10 +38,7 @@ def list_items(
     return JsonResponse(item_serializer.dump(result, many=True))
 
 
-@blueprint.get("/counters")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.get("/counters"))
 def get_item_counters(
     items_service: ItemsService = Provide(),
     item_counters_serializer: ItemCountersSerializer = Provide(),
@@ -55,10 +47,7 @@ def get_item_counters(
     return JsonResponse(item_counters_serializer.dump({"counters": result}))
 
 
-@blueprint.post("/random_set")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/random_set"))
 def get_random_item_set_for_auction(
     items_service: ItemsService = Provide(),
     item_serializer: ItemSerializer = Provide(),
@@ -74,10 +63,7 @@ def get_random_item_set_for_auction(
     return JsonResponse(item_serializer.dump(result, many=True))
 
 
-@blueprint.post("/random_auction")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.post("/random_auction"))
 def get_random_item_for_auction(
     items_service: ItemsService = Provide(),
     item_serializer: ItemSerializer = Provide(),
@@ -95,10 +81,7 @@ def get_random_item_for_auction(
     return JsonResponse(item_serializer.dump(result) if result is not None else None)
 
 
-@blueprint.put("/<int:id_>")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.put("/<int:id_>"))
 def update_item(
     id_: int,
     items_service: ItemsService = Provide(),
@@ -109,10 +92,7 @@ def update_item(
     return JsonResponse(item_serializer.dump(item))
 
 
-@blueprint.delete("")
-@with_error_handler
-@login_required()
-@inject
+@endpoint(blueprint.delete(""))
 def delete_items(
     items_service: ItemsService = Provide(),
     item_ids_serializer: ItemIdsSerializer = Provide(),

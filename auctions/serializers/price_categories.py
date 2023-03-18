@@ -25,4 +25,3 @@ class PriceCategorySerializer(BaseSerializer):
     bid_start_price = fields.Int(required=True, data_key="bidStartPrice")
     bid_min_step = fields.Int(required=True, data_key="bidMinStep")
     bid_multiple_of = fields.Int(required=True, data_key="bidMultipleOf")
-    manual = fields.Bool(required=False, default=True)
