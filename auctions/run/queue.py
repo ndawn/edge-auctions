@@ -6,7 +6,6 @@ import dramatiq
 from dramatiq import Worker
 from dramatiq.brokers.redis import RedisBroker
 
-import auctions.tasks  # noqa # pylint: disable=unused-import
 from auctions.config import Config
 from auctions.utils.app import create_base_app
 
@@ -97,6 +96,8 @@ def run_queue(config: Config) -> None:
     dramatiq.set_broker(broker)
 
     create_base_app(config)
+
+    import auctions.tasks  # noqa # pylint: disable=unused-import
 
     worker = Worker(broker)
     worker.start()
