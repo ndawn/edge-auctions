@@ -22,6 +22,7 @@ from auctions.db.models.images import Image
 from auctions.db.models.item_types import ItemType
 from auctions.db.models.items import Item
 from auctions.db.models.price_categories import PriceCategory
+from auctions.db.models.push import PushSubscription
 from auctions.db.models.sessions import SupplySession
 from auctions.db.models.templates import Template
 from auctions.db.models.users import User
@@ -37,6 +38,7 @@ Model = TypeVar(
     ItemType,
     Item,
     PriceCategory,
+    PushSubscription,
     SupplySession,
     Template,
     User,
@@ -68,6 +70,8 @@ class Repository(Generic[Model]):
     def create(self, instance: Model | None = None, /, **kwargs) -> Model:
         if instance is None:
             instance = self.model(**kwargs)
+
+        self.session.merge(instance)
         self.session.add(instance)
         self.session.flush()
         return instance
@@ -148,8 +152,11 @@ class Repository(Generic[Model]):
         self.session.refresh(instance)
 
     def update(self, instance: Model, **kwargs) -> None:
+        self.session.merge(instance)
+
         for key, value in kwargs.items():
             setattr(instance, key, value)
+
         self.session.flush()
 
     def delete(self, instances: list[Model]) -> None:
