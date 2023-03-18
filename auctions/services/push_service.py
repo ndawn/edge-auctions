@@ -26,7 +26,9 @@ class PushService:
 
     def get_public_key(self) -> str:
         with open(self.config.vapid_public_key) as public_key_file:
-            return public_key_file.read()
+            public_key = public_key_file.read()
+            print(public_key.__repr__())
+            return public_key
 
     def send_push(self, subscription_info: PushSubscription, payload: ...) -> None:
         try:
