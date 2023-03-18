@@ -4,3 +4,5 @@
 ./logs
 ./redis
 ./sockets
+./client_ui
+./client_admin
