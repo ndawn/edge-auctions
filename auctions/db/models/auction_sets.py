@@ -17,7 +17,7 @@ class AuctionSet(Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     date_due: Mapped[datetime]
     anti_sniper: Mapped[int]
-    ended_at: Mapped[datetime]
+    ended_at: Mapped[datetime | None]
     is_published: Mapped[bool] = mapped_column(default=False)
 
     auctions: Mapped[list["Auction"]] = relationship(
