@@ -36,7 +36,7 @@ class SupplyService:
         return self.supply_sessions_repository.get_current_session()
 
     def start_session(self, item_type: ItemType, images: list[Image]) -> SupplySession:
-        session = self.supply_sessions_repository.create(item_type=item_type, total_items=len(images))
+        session = self.supply_sessions_repository.create(item_type=item_type)
 
         for image in images:
             self.items_repository.create(

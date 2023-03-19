@@ -1,5 +1,6 @@
 from traceback import print_exception
 
+import loguru
 from marshmallow.exceptions import ValidationError as MarshmallowValidationError
 from werkzeug.exceptions import UnprocessableEntity
 
@@ -26,8 +27,16 @@ def handle_exception(exception: Exception):
         return JsonResponse(serializer.dump(exception), status=exception.status_code)
     if isinstance(exception, (MarshmallowValidationError, UnprocessableEntity)):
         exception = convert_validation_error(exception)
-        print_exception(exception.__class__, exception, exception.__traceback__)
-        return JsonResponse(serializer.dump(exception), status=exception.status_code)
+        loguru.logger.exception(exception)
+        return JsonResponse({
+            "error": "ValidationError",
+            "message": "Request contains malformed or invalid data",
+            "statusCode": 422,
+        }, status=422)
 
     print_exception(exception.__class__, exception, exception.__traceback__)
-    return JsonResponse(serializer.dump(exception), status=500)
+    return JsonResponse({
+        "error": "InternalServerError",
+        "message": "Internal server error",
+        "statusCode": 500,
+    }, status=500)

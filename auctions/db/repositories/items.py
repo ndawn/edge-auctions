@@ -33,7 +33,9 @@ class ItemsRepository(Repository[Item]):
     def get_random_set(self, amounts: dict[int, dict[int, int]]) -> list[Item]:
         items = []
 
-        non_auction_items = select(Item.id).where(Item.id.not_in(select(Auction.item_id).subquery())).subquery()
+        non_auction_items = select(Item.id).where(
+            Item.id.not_in(select(Auction.item_id).where(Auction.item_id.is_not(None)))
+        )
 
         for item_type_id in amounts:
             for price_category_id in amounts[item_type_id]:
