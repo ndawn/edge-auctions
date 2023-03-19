@@ -3,6 +3,7 @@ from typing import cast
 from typing import Callable
 
 from flask import current_app
+from sqlalchemy.orm.session import Session
 
 from auctions.db.session import SessionManager
 from auctions.services.auth_service import AuthService
@@ -22,17 +23,21 @@ def endpoint(
         @wraps(func)
         @endpoint_spec
         def decorated(*args, **kwargs) -> ...:
+            session_qual_name = current_app.provider.get_qual_name(Session)
             session_manager: SessionManager = current_app.provider.provide(SessionManager)
 
-            with session_manager.session.begin() as transaction:
+            with session_manager.session:
                 if protected:
-                    auth_service = current_app.provider.provide(AuthService, [transaction.session])
+                    auth_service = current_app.provider.provide(
+                        AuthService,
+                        {session_qual_name: session_manager.session},
+                    )
                     user = auth_service.authorize_request(is_admin)
 
                     if inject_user:
                         kwargs["user"] = user
 
-                return current_app.provider.inject(func, [transaction.session])(*args, **kwargs)
+                return current_app.provider.inject(func, {session_qual_name: session_manager.session})(*args, **kwargs)
 
         return decorated
 

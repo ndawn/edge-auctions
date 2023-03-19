@@ -144,8 +144,10 @@ class DependencyProvider:
         for sub_dependency in dependency.depends:
             self.invalidate_cache(sub_dependency)
 
-    def inject(self, func: Callable, local_deps: list | None = None) -> Callable:
-        local_deps = {self.get_qual_name(dep.__class__): dep for dep in (local_deps or [])}
+    def inject(self, func: Callable, local_deps: dict | list | None = None) -> Callable:
+        if isinstance(local_deps, list):
+            local_deps = {self.get_qual_name(dep.__class__): dep for dep in (local_deps or [])}
+
         dependency_tree = self.resolve_dependency_tree(func)
 
         @wraps(func)
