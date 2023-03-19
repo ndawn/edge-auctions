@@ -26,18 +26,18 @@ def endpoint(
             session_qual_name = current_app.provider.get_qual_name(Session)
             session_manager: SessionManager = current_app.provider.provide(SessionManager)
 
-            with session_manager.session:
+            with session_manager.session() as session:
                 if protected:
                     auth_service = current_app.provider.provide(
                         AuthService,
-                        {session_qual_name: session_manager.session},
+                        {session_qual_name: session},
                     )
                     user = auth_service.authorize_request(is_admin)
 
                     if inject_user:
                         kwargs["user"] = user
 
-                return current_app.provider.inject(func, {session_qual_name: session_manager.session})(*args, **kwargs)
+                return current_app.provider.inject(func, {session_qual_name: session})(*args, **kwargs)
 
         return decorated
 
