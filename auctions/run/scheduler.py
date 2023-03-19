@@ -9,7 +9,6 @@ from dramatiq.brokers.redis import RedisBroker
 from auctions.config import Config
 from auctions.jobs import periodic_auction_set_check
 from auctions.jobs import periodic_invoice_check
-from auctions.utils.app import create_base_app
 
 
 def create_scheduler(config: Config) -> BlockingScheduler:
@@ -36,7 +35,6 @@ def create_scheduler(config: Config) -> BlockingScheduler:
 
 
 def main(config: Config) -> None:
-    create_base_app(config)
     scheduler = create_scheduler(config)
     logging.basicConfig(level=logging.DEBUG)
 

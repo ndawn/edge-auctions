@@ -5,7 +5,7 @@ from auctions.config import Config
 
 
 def run_queue(config: Config) -> None:
-    process = subprocess.Popen(["dramatiq", "auctions.tasks"], shell=True)
+    process = subprocess.Popen(["dramatiq", "auctions.tasks:broker"])
 
     try:
         process.wait()
