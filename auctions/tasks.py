@@ -2,6 +2,7 @@ import os
 from traceback import print_exception
 
 import dramatiq
+import loguru
 from argon2 import PasswordHasher
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy import create_engine
@@ -64,57 +65,45 @@ auth_service = AuthService(shop_connect_service=shop_connect_service, users_repo
 push_service = PushService(push_subscriptions_repository=push_subscriptions_repository, config=config)
 
 
-@dramatiq.actor
+@dramatiq.actor(max_retries=0)
+@loguru.logger.catch
 def try_close_auction_sets() -> None:
-    try:
-        auction_sets = auctions_service.auction_sets_repository.get_many(AuctionSet.ended_at.is_(None))
+    auction_sets = auctions_service.auction_sets_repository.get_many(AuctionSet.ended_at.is_(None))
 
-        for auction_set in auction_sets:
-            auctions_service.close_auction_set(auction_set)
+    for auction_set in auction_sets:
+        auctions_service.close_auction_set(auction_set)
 
-        session_class.commit()
-    except Exception as exception:
-        print_exception(exception)
-
+    session_class.commit()
     session_class.remove()
 
 
-@dramatiq.actor
+@dramatiq.actor(max_retries=0)
+@loguru.logger.catch
 def create_invoice(user_id: str, auction_ids: list[int]) -> None:
-    try:
-        user = auth_service.get_user_by_id(user_id)
-        auctions = auctions_repository.get_many(ids=auction_ids)
-        shop_connect_service.create_invoice(user, auctions)
-        session_class.commit()
-    except Exception as exception:
-        print_exception(exception)
-
+    user = auth_service.get_user_by_id(user_id)
+    auctions = auctions_repository.get_many(ids=auction_ids)
+    shop_connect_service.create_invoice(user, auctions)
+    session_class.commit()
     session_class.remove()
 
 
-@dramatiq.actor
+@dramatiq.actor(max_retries=0)
+@loguru.logger.catch
 def check_invoices() -> None:
-    try:
-        auctions = auctions_repository.get_many(Auction.invoice_link.is_not(None))
-        auctions_service.check_invoices(auctions)
-        session_class.commit()
-    except Exception as exception:
-        print_exception(exception)
-
+    auctions = auctions_repository.get_many(Auction.invoice_link.is_not(None))
+    auctions_service.check_invoices(auctions)
+    session_class.commit()
     session_class.remove()
 
 
-@dramatiq.actor
+@dramatiq.actor(max_retries=0)
+@loguru.logger.catch
 def send_push(recipient_id: str, event_type: PushEventType, payload: ...) -> None:
     try:
-        try:
-            recipient = auth_service.get_user_by_id(recipient_id)
-        except ObjectDoesNotExist:
-            return
+        recipient = auth_service.get_user_by_id(recipient_id)
+    except ObjectDoesNotExist:
+        return
 
-        push_service.send_event(recipient, event_type, payload)
-        session_class.commit()
-    except Exception as exception:
-        print_exception(exception)
-
+    push_service.send_event(recipient, event_type, payload)
+    session_class.commit()
     session_class.remove()
