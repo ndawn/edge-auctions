@@ -28,7 +28,7 @@ from auctions.utils.cipher import AESCipher
 
 
 config = Config.load(os.getenv("CONFIG_PATH"))
-engine = create_engine(config.db_url, echo=True)
+engine = create_engine(config.db_url, echo=config.debug)
 session_class = scoped_session(sessionmaker(engine))
 
 broker = RedisBroker(url=config.broker_url)
