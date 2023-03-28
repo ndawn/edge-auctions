@@ -24,11 +24,11 @@ class PushService:
         self.push_subscriptions_repository = push_subscriptions_repository
         self.config = config
 
-    def send_push(self, push_subscription: PushSubscription, payload: ...) -> None:
+    def send_push(self, push_subscription: PushSubscription, payload: dict[str, ...]) -> None:
         try:
             message = messaging.Message(
+                data=json.dumps({key: str(value) for key, value in payload.items()}),
                 token=push_subscription.token,
-                webpush=messaging.WebpushConfig(data=json.dumps(payload)),
             )
             messaging.send(message)
             # webpush(
