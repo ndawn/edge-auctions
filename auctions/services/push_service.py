@@ -27,7 +27,7 @@ class PushService:
     def send_push(self, push_subscription: PushSubscription, payload: dict[str, ...]) -> None:
         try:
             message = messaging.Message(
-                data=json.dumps({key: str(value) for key, value in payload.items()}),
+                data={key: str(value) for key, value in payload.items()},
                 token=push_subscription.token,
             )
             messaging.send(message)
