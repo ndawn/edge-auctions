@@ -2,6 +2,7 @@ import os
 from traceback import print_exception
 
 import dramatiq
+import firebase_admin
 import loguru
 from argon2 import PasswordHasher
 from dramatiq.brokers.redis import RedisBroker
@@ -34,6 +35,8 @@ session_class = scoped_session(sessionmaker(engine))
 broker = RedisBroker(url=config.broker_url)
 dramatiq.set_broker(broker)
 
+firebase_admin.initialize_app()
+
 auctions_repository = AuctionsRepository(session=session_class, config=config)  # noqa
 auction_sets_repository = AuctionSetsRepository(session=session_class, config=config)  # noqa
 push_subscriptions_repository = PushSubscriptionsRepository(session=session_class, config=config)  # noqa
@@ -62,7 +65,10 @@ shop_connect_service = ShopConnectService(
 
 
 auth_service = AuthService(shop_connect_service=shop_connect_service, users_repository=users_repository, config=config)
-push_service = PushService(push_subscriptions_repository=push_subscriptions_repository, config=config)
+push_service = PushService(
+    push_subscriptions_repository=push_subscriptions_repository,
+    config=config,
+)
 
 
 @dramatiq.actor(max_retries=0)

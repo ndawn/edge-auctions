@@ -12,12 +12,6 @@ from auctions.utils.response import JsonResponse
 blueprint = Blueprint("push", __name__, url_prefix="/push")
 
 
-@endpoint(blueprint.get("/key"), is_admin=False)
-def get_public_key(push_service: PushService = Provide()) -> JsonResponse:
-    public_key = push_service.get_public_key()
-    return JsonResponse({"key": public_key})
-
-
 @endpoint(blueprint.post("/subscribe"), is_admin=False, inject_user=True)
 def subscribe_to_updates(
     user: User,

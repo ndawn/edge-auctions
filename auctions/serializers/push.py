@@ -9,8 +9,7 @@ from auctions.serializers.base import BaseSerializer
 
 @dataclass
 class SubscriptionInfo:
-    endpoint: str
-    keys: dict[str, str]
+    token: str
 
 
 class PushSubscriptionKeysSerializer(BaseSerializer):
@@ -22,8 +21,7 @@ class PushSubscriptionInfoSerializer(BaseSerializer):
     class Meta:
         unknown = EXCLUDE
 
-    endpoint = fields.Str(required=True)
-    keys = fields.Nested("PushSubscriptionKeysSerializer", required=True)
+    token = fields.Str(required=True)
 
     @post_load
     def make_dataclass(self, data: dict[str, ...], *args, **kwargs) -> SubscriptionInfo:

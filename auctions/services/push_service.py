@@ -2,8 +2,8 @@ import json
 from dataclasses import asdict
 from traceback import print_exception
 
-from pywebpush import webpush
-from pywebpush import WebPushException
+from firebase_admin import messaging
+from firebase_admin.exceptions import FirebaseError
 
 from auctions.config import Config
 from auctions.db.models.enum import PushEventType
@@ -24,26 +24,24 @@ class PushService:
         self.push_subscriptions_repository = push_subscriptions_repository
         self.config = config
 
-    def get_public_key(self) -> str:
-        with open(self.config.vapid_public_key) as public_key_file:
-            public_key = public_key_file.read()
-            print(public_key.__repr__())
-            return public_key
-
-    def send_push(self, subscription_info: PushSubscription, payload: ...) -> None:
+    def send_push(self, push_subscription: PushSubscription, payload: ...) -> None:
         try:
-            with open(self.config.vapid_private_key) as private_key_file:
-                webpush(
-                    json.loads(subscription_info.data),
-                    json.dumps(payload),
-                    vapid_private_key=private_key_file.read(),
-                    vapid_claims={"sub": self.config.vapid_sub},
-                )
-        except WebPushException as exception:
-            print_exception(type(exception), exception, exception.__traceback__)
+            message = messaging.Message(
+                token=push_subscription.token,
+                webpush=messaging.WebpushConfig(data=json.dumps(payload)),
+            )
+            messaging.send(message)
+            # webpush(
+            #     json.loads(subscription_info.data),
+            #     json.dumps(payload),
+            #     vapid_private_key=private_key_file.read(),
+            #     vapid_claims={"sub": self.config.vapid_sub},
+            # )
+        except FirebaseError as exception:
+            print_exception(exception)
 
-            if exception.response.status_code in {403, 410}:
-                self.push_subscriptions_repository.delete([subscription_info])
+            # if exception.response.status_code in {403, 410}:
+            #     self.push_subscriptions_repository.delete([push_subscription])
 
     def send_event(self, recipient: User | None, event_type: PushEventType, payload: dict[str, ...]):
         if recipient is None:
@@ -56,14 +54,6 @@ class PushService:
 
     def subscribe(self, user: User, subscription_info: SubscriptionInfo) -> None:
         try:
-            subscription = self.push_subscriptions_repository.get_one(
-                PushSubscription.endpoint == subscription_info.endpoint
-            )
-
-            subscription.data = json.dumps(asdict(subscription_info))
+            self.push_subscriptions_repository.get_one(PushSubscription.token == subscription_info.token)
         except ObjectDoesNotExist:
-            self.push_subscriptions_repository.create(
-                user_id=user.id,
-                endpoint=subscription_info.endpoint,
-                data=json.dumps(asdict(subscription_info)),
-            )
+            self.push_subscriptions_repository.create(user_id=user.id, token=subscription_info.token)

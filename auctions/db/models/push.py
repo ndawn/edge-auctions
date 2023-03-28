@@ -21,5 +21,4 @@ class PushSubscription(Model):
         foreign_keys="PushSubscription.user_id",
         back_populates="subscriptions",
     )
-    endpoint: Mapped[str] = mapped_column(unique=True)
-    data: Mapped[str]
+    token: Mapped[str] = mapped_column(unique=True)
