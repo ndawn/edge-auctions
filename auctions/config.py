@@ -48,6 +48,12 @@ class SecretConfigSchema(Schema):
     vapid_public_key = fields.Str(required=True, data_key="VAPID_PUBLIC_KEY")
     vapid_private_key = fields.Str(required=True, data_key="VAPID_PRIVATE_KEY")
     vapid_sub = fields.Str(required=True, data_key="VAPID_SUB")
+    google_application_credentials = fields.Function(
+        serialize=serialize_path,
+        deserialize=deserialize_path,
+        required=True,
+        data_key="GOOGLE_APPLICATION_CREDENTIALS",
+    )
     vips_dir = fields.Str(required=True, data_key="VIPS_DIR")
     shop_id = fields.Str(required=True, data_key="SHOP_ID")
     shop_api_key = fields.Str(validate=validate.Length(equal=32), required=True, data_key="SHOP_API_KEY")
@@ -135,7 +141,7 @@ class Config:
     vapid_public_key: str
     vapid_private_key: str
     vapid_sub: str
-    # vapid_aud: str
+    google_application_credentials: Path
     shop_id: str
     shop_api_key: str
     shop_api_secret: str
@@ -173,6 +179,8 @@ class Config:
 
         assert os.path.isfile(config["vapid_public_key"]), "Please provide a proper path to a public key file"
         assert os.path.isfile(config["vapid_private_key"]), "Please provide a proper path to a private key file"
+        assert os.path.isfile(config["google_application_credentials"]), \
+            "Please provide a proper path to a Google application credentials file"
 
         _create_dirs([
             config["assets_path"],
