@@ -1,5 +1,4 @@
 import os
-from traceback import print_exception
 
 import dramatiq
 import firebase_admin
@@ -29,7 +28,7 @@ from auctions.utils.cipher import AESCipher
 
 
 config = Config.load(os.getenv("CONFIG_PATH"))
-engine = create_engine(config.db_url, echo=config.debug)
+engine = create_engine(config.db_url, echo=False)
 session_class = scoped_session(sessionmaker(engine))
 
 broker = RedisBroker(url=config.broker_url)
@@ -72,9 +71,10 @@ push_service = PushService(
 
 
 @dramatiq.actor(max_retries=0)
-@loguru.logger.catch
 def try_close_auction_sets() -> None:
     auction_sets = auctions_service.auction_sets_repository.get_many(AuctionSet.ended_at.is_(None))
+
+    loguru.logger.debug(auction_sets)
 
     for auction_set in auction_sets:
         auctions_service.close_auction_set(auction_set)
@@ -84,8 +84,8 @@ def try_close_auction_sets() -> None:
 
 
 @dramatiq.actor(max_retries=0)
-@loguru.logger.catch
 def create_invoice(user_id: str, auction_ids: list[int]) -> None:
+    loguru.logger.debug(f"Creating an invoice for user {user_id}")
     user = auth_service.get_user_by_id(user_id)
     auctions = auctions_repository.get_many(ids=auction_ids)
     shop_connect_service.create_invoice(user, auctions)
@@ -94,7 +94,6 @@ def create_invoice(user_id: str, auction_ids: list[int]) -> None:
 
 
 @dramatiq.actor(max_retries=0)
-@loguru.logger.catch
 def check_invoices() -> None:
     auctions = auctions_repository.get_many(Auction.invoice_link.is_not(None))
     auctions_service.check_invoices(auctions)
@@ -103,7 +102,6 @@ def check_invoices() -> None:
 
 
 @dramatiq.actor(max_retries=0)
-@loguru.logger.catch
 def send_push(recipient_id: str, event_type: PushEventType, payload: ...) -> None:
     try:
         recipient = auth_service.get_user_by_id(recipient_id)

@@ -43,6 +43,7 @@ loguru = "^0.6.0"
 dependency-injector = "^4.41.0"
 flask-injector = "^0.14.0"
 firebase-admin = "^6.1.0"
+python-telegram-bot = "^20.2"
 
 [tool.poetry.dev-dependencies]
 black = "^22.12"

@@ -1,5 +1,7 @@
+import json
 from base64 import b64encode
 
+import loguru
 import requests
 
 
@@ -27,6 +29,8 @@ class InsalesApi:
         return f"https://{self.account}.myinsales.ru/{url}"
 
     def request(self, method: str, url: str, data: dict[str, ...] = None) -> ...:
+        loguru.logger.debug(f"Sending request to {url}")
+        loguru.logger.debug(f"Request body: {data}")
         full_url = self._build_full_url(url)
         response = self.session.request(method=method, url=full_url, headers=self.headers, json=data)
 
@@ -82,7 +86,7 @@ class InsalesApi:
                         for product_id in product_ids
                     ],
                     "client": client,
-                    "shipping_address_attributes": {"address": shipping_address},
+                    "shipping_address_attributes": shipping_address,
                     "delivery_variant_id": delivery_variant_id,
                     "payment_gateway_id": payment_gateway_id,
                     "custom_status_permalink": status,

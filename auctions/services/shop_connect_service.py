@@ -1,3 +1,5 @@
+import loguru
+
 from auctions.config import Config
 from auctions.db.models.auctions import Auction
 from auctions.db.models.users import User
@@ -55,6 +57,7 @@ class ShopConnectService:
 
     def create_invoice(self, user: User, auctions: list[Auction]) -> None:
         shop_user_info = self.api.get_client(user.shop_id)
+        loguru.logger.debug(f"User info from InSales: {shop_user_info}")
 
         shop_product_ids = []
 
@@ -66,6 +69,8 @@ class ShopConnectService:
             )
 
             shop_product_ids.append(product_id)
+
+        loguru.logger.debug(f"Created products in InSales: {shop_product_ids}")
 
         order = self.api.create_order(
             product_ids=shop_product_ids,

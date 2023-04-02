@@ -11,7 +11,16 @@ class ScheduleService:
     def actor_mimic(func: Callable) -> Callable:
         @wraps(func)
         def decorated(*args, **kwargs) -> ...:
-            return dramatiq.actor(func).send(*args, **kwargs)
+            broker = dramatiq.get_broker()
+            return broker.enqueue(
+                dramatiq.Message(
+                    queue_name="default",
+                    actor_name=func.__name__,
+                    args=args,
+                    kwargs=kwargs,
+                    options={},
+                )
+            )
 
         return decorated
 

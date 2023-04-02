@@ -4,6 +4,7 @@ from datetime import timedelta
 from datetime import timezone
 from typing import Self
 
+import loguru
 from sqlalchemy import false
 
 from auctions.config import Config
@@ -159,6 +160,8 @@ class AuctionsService:
     def close_auction_set(self, auction_set: AuctionSet, force: bool = False) -> AuctionSet:
         now = datetime.now(timezone.utc)
 
+        loguru.logger.debug(f"Attempting to close auction set {auction_set}")
+
         if auction_set.ended_at is not None:
             return auction_set
 
@@ -237,6 +240,8 @@ class AuctionsService:
 
     def notify_winners(self, auction_set: AuctionSet) -> None:
         winners = self.get_auction_winners(auction_set)
+        loguru.logger.debug(f"Attempting to notify winners for auction set {auction_set}")
+        loguru.logger.debug(f"Winners: {winners}")
 
         for winner_id, auctions in winners.items():
             self.schedule_service.send_push(
@@ -245,6 +250,7 @@ class AuctionsService:
                 {"auctionCount": len(auctions)},
             )
             self.schedule_service.create_invoice(winner_id, [auction.id for auction in auctions])
+            loguru.logger.debug(f"Scheduled a push and invoice creation for user {winner_id}")
 
     def create_bid(self, auction: Auction, user: User, value: int) -> Bid:
         now = datetime.now(timezone.utc)

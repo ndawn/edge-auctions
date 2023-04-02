@@ -88,7 +88,7 @@ class AuthService:
         try:
             user = self.users_repository.get_one(User.shop_id == user_info.id)
             user.phone = user_info.phone
-            user.address = user_info.default_address["full_delivery_address"]
+            user.address = json.dumps(user_info.default_address)
         except ObjectDoesNotExist:
             try:
                 auth0_user = self.auth0_connect_service.create_user(
