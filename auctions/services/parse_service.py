@@ -397,7 +397,9 @@ class ParseService:
         if item.parse_data.get("cover_price") is None or item.parse_data.get("release_date") is None:
             return None
 
-        if item.parse_data["release_date"] + relativedelta(months=6) >= datetime.now(timezone.utc):
+        release_date = item.parse_data["release_date"].astimezone(timezone.utc)
+
+        if release_date + relativedelta(months=6) >= datetime.now(timezone.utc):
             acceptable_conditions = ["Near Mint", "Very Fine"]
             min_price_delta = 2
             to_pass = True
