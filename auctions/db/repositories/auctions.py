@@ -1,5 +1,6 @@
 from typing import Self
 
+import loguru
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
 
@@ -48,6 +49,7 @@ class AuctionsRepository(Repository[Auction]):
         )
 
     def get_user_won_auctions(self, user: User) -> list[Auction]:
+        loguru.logger.debug(f"User: {user}, {user.id=}")
         return self.get_many(
             Auction.bids.any(Bid.next_bid_id.is_(None) & (Bid.user_id == user.id))
             & Auction.set.has(ended_at=None),

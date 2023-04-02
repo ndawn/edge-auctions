@@ -43,14 +43,6 @@ users_repository = UsersRepository(session=session_class, config=config)  # noqa
 
 schedule_service = ScheduleService()
 
-auctions_service = AuctionsService(
-    auction_sets_repository=auction_sets_repository,
-    auctions_repository=auctions_repository,
-    schedule_service=schedule_service,
-    config=config,
-)
-
-
 shop_connect_service = ShopConnectService(
     password_service=PasswordService(
         password_cipher=AESCipher(config.password_key),
@@ -59,6 +51,14 @@ shop_connect_service = ShopConnectService(
     ),
     schedule_service=schedule_service,
     auctions_repository=auctions_repository,
+    config=config,
+)
+
+auctions_service = AuctionsService(
+    auction_sets_repository=auction_sets_repository,
+    auctions_repository=auctions_repository,
+    schedule_service=schedule_service,
+    shop_connect_service=shop_connect_service,
     config=config,
 )
 
