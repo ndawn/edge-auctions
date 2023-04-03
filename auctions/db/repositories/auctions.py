@@ -52,7 +52,7 @@ class AuctionsRepository(Repository[Auction]):
         loguru.logger.debug(f"User: {user}, {user.id=}")
         return self.get_many(
             Auction.bids.any(Bid.next_bid_id.is_(None) & (Bid.user_id == user.id))
-            & Auction.set.any(AuctionSet.ended_at.is_not(None)),
+            & Auction.set.has(AuctionSet.ended_at.is_not(None)),
             sort_key=Auction.date_due,
             sort_order=SortOrder.DESC,
         )
