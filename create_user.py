@@ -50,6 +50,8 @@ def execute() -> None:
             password=auth0_user.password,
         )
 
+        session_manager.session.commit()
+
         print(user.id)
         print(auth0_connect_service.password_service.decrypt_password(auth0_user.password))
 
