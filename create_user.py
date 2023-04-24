@@ -2,9 +2,10 @@ import json
 
 from argon2 import PasswordHasher
 
-from auctions.app import create_app
 from auctions.config import Config
 from auctions.db.repositories.users import UsersRepository
+from auctions.db.session import SessionManager
+from auctions.run.app import create_app
 from auctions.services.auth0_connect_service import Auth0ConnectService
 from auctions.services.password_service import PasswordService
 from auctions.utils.cipher import AESCipher
@@ -15,6 +16,7 @@ json_path = "user.json"
 
 def execute() -> None:
     config = Config.load("config/config.yml")
+    session_manager = SessionManager(config)
 
     with create_app(config).app_context():
         auth0_connect_service = Auth0ConnectService(
@@ -25,7 +27,7 @@ def execute() -> None:
             ),
             config=config,
         )
-        users_repository = UsersRepository(config)
+        users_repository = UsersRepository(session_manager.session)
 
         with open(json_path) as json_file:
             user_info = json.loads(json_file.read())

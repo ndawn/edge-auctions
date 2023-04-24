@@ -15,9 +15,9 @@ class User(Model):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(primary_key=True)
-    shop_id: Mapped[int] = mapped_column(unique=True)
+    shop_id: Mapped[int]
     email: Mapped[str] = mapped_column(unique=True)
-    phone: Mapped[str] = mapped_column(unique=True)
+    phone: Mapped[str]
     address: Mapped[str]
     password: Mapped[str]
     first_name: Mapped[str] = mapped_column(default="")
