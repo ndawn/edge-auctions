@@ -84,7 +84,7 @@ class ShopConnectService:
         order = self.api.create_order(
             product_ids=shop_product_ids,
             client=shop_user_info,
-            shipping_address=shop_user_info.get("default_address"),
+            shipping_address=shipping_address,
             delivery_variant_id=self.config.shop_delivery_variant_id,
             payment_gateway_id=self.config.shop_payment_gateway_id,
             status=self.config.shop_order_status_permalink,
