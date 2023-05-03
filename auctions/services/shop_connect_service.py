@@ -59,6 +59,15 @@ class ShopConnectService:
         shop_user_info = self.api.get_client(user.shop_id)
         loguru.logger.debug(f"User info from InSales: {shop_user_info}")
 
+        shipping_address = shop_user_info.get("default_address")
+
+        for key in ["name", "surname", "middlename"]:
+            if key not in shipping_address or not shipping_address[key]:
+                shipping_address[key] = shop_user_info[key]
+
+        if "country" not in shipping_address or not shipping_address["country"]:
+            shipping_address["country"] = "RU"
+
         shop_product_ids = []
 
         for auction in auctions:
